@@ -1,10 +1,59 @@
 from hyundai_kia_connect_api import *
 import paho.mqtt.client as mqtt
+import sys
+import os
+import string
+from time import sleep
+from datetime import datetime, timedelta
 
-string = "Vehicle(id='872d889e-17f8-4af9-b394-e1f477b49c61', name='EV6', model='EV6', registration_date='2025-08-07 11:53:14.841', year=None, VIN='KNAC381AFP5611098', key=None, ccu_ccs2_protocol_support=0, generation=None, enabled=True, _total_driving_range=344.0, _total_driving_range_value=344.0, _total_driving_range_unit='km', _odometer=935.8, _odometer_value=935.8, _odometer_unit='km', _geocode_address=None, _geocode_name=None, car_battery_percentage=85, engine_is_running=False, _last_updated_at=datetime.datetime(2025, 8, 26, 15, 21, 10, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200), 'CEST')), timezone=tzfile('/usr/share/zoneinfo/Europe/Berlin'), dtc_count=None, dtc_descriptions=None, smart_key_battery_warning_is_on=False, washer_fluid_warning_is_on=False, brake_fluid_warning_is_on=False, _air_temperature=15.0, _air_temperature_value=15.0, _air_temperature_unit='°C', air_control_is_on=False, defrost_is_on=False, steering_wheel_heater_is_on=False, back_window_heater_is_on=0, side_mirror_heater_is_on=None, front_left_seat_status=None, front_right_seat_status=None, rear_left_seat_status=None, rear_right_seat_status=None, is_locked=True, front_left_door_is_locked=None, front_right_door_is_locked=None, back_left_door_is_locked=None, back_right_door_is_locked=None, front_left_door_is_open=0, front_right_door_is_open=0, back_left_door_is_open=0, back_right_door_is_open=0, trunk_is_open=False, hood_is_open=False, front_left_window_is_open=0, front_right_window_is_open=0, back_left_window_is_open=0, back_right_window_is_open=0, sunroof_is_open=None, tire_pressure_all_warning_is_on=False, tire_pressure_rear_left_warning_is_on=False, tire_pressure_front_left_warning_is_on=False, tire_pressure_front_right_warning_is_on=False, tire_pressure_rear_right_warning_is_on=False, _next_service_distance=None, _next_service_distance_value=None, _next_service_distance_unit=None, _last_service_distance=None, _last_service_distance_value=None, _last_service_distance_unit=None, _location_latitude=48.316189, _location_longitude=16.590414, _location_last_set_time=datetime.datetime(2025, 8, 26, 5, 31, 8, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200), 'CEST')), ev_charge_port_door_is_open=True, ev_charging_power=None, ev_charge_limits_dc=100, ev_charge_limits_ac=100, ev_charging_current=None, ev_v2l_discharge_limit=None, total_power_consumed=54432, total_power_regenerated=11822, power_consumption_30d=141, _daily_stats=[DailyDrivingStats(date=datetime.datetime(2025, 8, 25, 0, 0), total_consumed=516, engine_consumption=324, climate_consumption=92, onboard_electronics_consumption=100, battery_care_consumption=0, regenerated_energy=405, distance=1, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 24, 0, 0), total_consumed=81, engine_consumption=0, climate_consumption=31, onboard_electronics_consumption=50, battery_care_consumption=0, regenerated_energy=0, distance=0, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 23, 0, 0), total_consumed=13435, engine_consumption=12630, climate_consumption=295, onboard_electronics_consumption=510, battery_care_consumption=0, regenerated_energy=3324, distance=84, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 22, 0, 0), total_consumed=2885, engine_consumption=2125, climate_consumption=430, onboard_electronics_consumption=330, battery_care_consumption=0, regenerated_energy=1993, distance=16, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 13, 0, 0), total_consumed=14, engine_consumption=0, climate_consumption=4, onboard_electronics_consumption=10, battery_care_consumption=0, regenerated_energy=0, distance=0, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 7, 0, 0), total_consumed=37144, engine_consumption=34159, climate_consumption=1715, onboard_electronics_consumption=1270, battery_care_consumption=0, regenerated_energy=6094, distance=284, distance_unit='km'), DailyDrivingStats(date=datetime.datetime(2025, 8, 6, 0, 0), total_consumed=135, engine_consumption=24, climate_consumption=51, onboard_electronics_consumption=60, battery_care_consumption=0, regenerated_energy=6, distance=0, distance_unit='km')], _month_trip_info=None, _day_trip_info=None, ev_battery_percentage=78, ev_battery_soh_percentage=None, ev_battery_remain=None, ev_battery_capacity=None, ev_battery_is_charging=False, ev_battery_is_plugged_in=0, _ev_driving_range=344.0, _ev_driving_range_value=344.0, _ev_driving_range_unit='km', _ev_estimated_current_charge_duration=105, _ev_estimated_current_charge_duration_value=105, _ev_estimated_current_charge_duration_unit='m', _ev_estimated_fast_charge_duration=30, _ev_estimated_fast_charge_duration_value=30, _ev_estimated_fast_charge_duration_unit='m', _ev_estimated_portable_charge_duration=440, _ev_estimated_portable_charge_duration_value=440, _ev_estimated_portable_charge_duration_unit='m', _ev_estimated_station_charge_duration=105, _ev_estimated_station_charge_duration_value=105, _ev_estimated_station_charge_duration_unit='m', _ev_target_range_charge_AC=453, _ev_target_range_charge_AC_value=453, _ev_target_range_charge_AC_unit='km', _ev_target_range_charge_DC=453, _ev_target_range_charge_DC_value=453, _ev_target_range_charge_DC_unit='km', ev_first_departure_enabled=False, ev_second_departure_enabled=False, ev_first_departure_days=[9], ev_second_departure_days=[9], ev_first_departure_time=datetime.time(0, 0), ev_second_departure_time=datetime.time(0, 0), ev_first_departure_climate_enabled=False, ev_second_departure_climate_enabled=False, _ev_first_departure_climate_temperature=14.0, _ev_first_departure_climate_temperature_value=14.0, _ev_first_departure_climate_temperature_unit='°C', _ev_second_departure_climate_temperature=14.0, _ev_second_departure_climate_temperature_value=14.0, _ev_second_departure_climate_temperature_unit='°C', ev_first_departure_climate_defrost=False, ev_second_departure_climate_defrost=False, ev_off_peak_start_time=datetime.time(0, 0), ev_off_peak_end_time=datetime.time(0, 0), ev_off_peak_charge_only_enabled=None, ev_schedule_charge_enabled=False, _fuel_driving_range=None, _fuel_driving_range_value=None, _fuel_driving_range_unit=None, fuel_level=None, fuel_level_is_low=None, engine_type=<ENGINE_TYPES.EV: 'EV'>, data={'vehicleLocation': {'coord': {'lat': 48.316189, 'lon': 16.590414, 'alt': 0, 'type': 0}, 'head': 0, 'speed': {'value': 0, 'unit': 0}, 'accuracy': {'hdop': 0, 'pdop': 0}, 'time': '20250826053108'}, 'vehicleStatus': {'airCtrlOn': False, 'engine': False, 'doorLock': True, 'doorOpen': {'frontLeft': 0, 'frontRight': 0, 'backLeft': 0, 'backRight': 0}, 'trunkOpen': False, 'airTemp': {'value': '02H', 'unit': 0, 'hvacTempType': 1}, 'defrost': False, 'acc': False, 'evStatus': {'batteryCharge': False, 'batteryStatus': 78, 'batteryPlugin': 0, 'remainTime2': {'etc1': {'value': 30, 'unit': 1}, 'etc2': {'value': 440, 'unit': 1}, 'etc3': {'value': 105, 'unit': 1}, 'atc': {'value': 105, 'unit': 1}}, 'drvDistance': [{'rangeByFuel': {'evModeRange': {'value': 344, 'unit': 1}, 'totalAvailableRange': {'value': 344, 'unit': 1}}, 'type': 2}], 'reservChargeInfos': {'reservChargeInfo': {'reservChargeInfoDetail': {'reservInfo': {'day': [9], 'time': {'time': '1200', 'timeSection': 0}}, 'reservChargeSet': False, 'reservFatcSet': {'defrost': False, 'airTemp': {'value': '00H', 'unit': 0, 'hvacTempType': 1}, 'airCtrl': 0, 'heating1': 0}}}, 'offpeakPowerInfo': {'offPeakPowerTime1': {'starttime': {'time': '1200', 'timeSection': 0}, 'endtime': {'time': '1200', 'timeSection': 0}}, 'offPeakPowerFlag': 0}, 'reserveChargeInfo2': {'reservChargeInfoDetail': {'reservInfo': {'day': [9], 'time': {'time': '1200', 'timeSection': 0}}, 'reservChargeSet': False, 'reservFatcSet': {'defrost': False, 'airTemp': {'value': '00H', 'unit': 0, 'hvacTempType': 1}, 'airCtrl': 0, 'heating1': 0}}}, 'reservFlag': 0, 'ect': {'start': {'day': 0, 'time': {'time': '0000', 'timeSection': 0}}, 'end': {'day': 0, 'time': {'time': '0000', 'timeSection': 0}}}, 'targetSOClist': [{'targetSOClevel': 100, 'dte': {'rangeByFuel': {'evModeRange': {'value': 453, 'unit': 1}, 'totalAvailableRange': {'value': 453, 'unit': 1}}, 'type': 2}, 'plugType': 0}, {'targetSOClevel': 100, 'dte': {'rangeByFuel': {'evModeRange': {'value': 453, 'unit': 1}, 'totalAvailableRange': {'value': 453, 'unit': 1}}, 'type': 2}, 'plugType': 1}]}, 'chargePortDoorOpenStatus': 1, 'batteryPreconditioning': False, 'batterySoh': 0}, 'ign3': True, 'hoodOpen': False, 'transCond': True, 'steerWheelHeat': 0, 'sideBackWindowHeat': 0, 'tirePressureLamp': {'tirePressureLampAll': 0, 'tirePressureLampFL': 0, 'tirePressureLampFR': 0, 'tirePressureLampRL': 0, 'tirePressureLampRR': 0}, 'battery': {'batSoc': 85, 'batState': 0, 'sjbDeliveryMode': 0, 'batSignalReferenceValue': {'batWarning': 65}, 'powerAutoCutMode': 2}, 'lampWireStatus': {'stopLamp': {'leftLamp': False, 'rightLamp': False}, 'headLamp': {'headLampStatus': False, 'leftLowLamp': False, 'rightLowLamp': False, 'leftHighLamp': False, 'rightHighLamp': False, 'leftBifuncLamp': False, 'rightBifuncLamp': False}, 'turnSignalLamp': {'leftFrontLamp': False, 'rightFrontLamp': False, 'leftRearLamp': False, 'rightRearLamp': False}}, 'windowOpen': {'frontLeft': 0, 'frontRight': 0, 'backLeft': 0, 'backRight': 0}, 'smartKeyBatteryWarning': False, 'washerFluidStatus': False, 'breakOilStatus': False, 'sleepModeCheck': False, 'time': '20250826152110', 'remoteWaitingTimeAlert': {'remoteControlAvailable': 1, 'remoteControlWaitingTime': 168, 'elapsedTime': '31:15:36'}, 'systemCutOffAlert': 0, 'tailLampStatus': 0, 'hazardStatus': 0}, 'odometer': {'value': 935.8, 'unit': 1}})"
+vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de")
+getValues = ["is_locked=","odometer_value=","ev_battery_percentage=","car_battery_percentage=","ev_driving_range="]
 
-#vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de")
-#vm.check_and_refresh_token()
-#vm.update_all_vehicles_with_cached_state()
-#print(vm.get_vehicle('872d889e-17f8-4af9-b394-e1f477b49c61'))
-print(find("_odometer_value="))
+useMQTT = True
+mqttBroker = "10.0.0.3"
+mqttuser ="fhemqtt"
+mqttpasswort = "2O9c7l1q4t5w6"
+mqttport = 1883
+
+def on_connect(client, userdata, flags, rc):
+    client.publish("Kia_EV6/LWT", "Online")
+
+try:
+   client = mqtt.Client("Kia")
+   client.username_pw_set(mqttuser, mqttpasswort)
+   client.on_connect = on_connect
+   client.will_set("Kia_EV6/LWT", "Offline", qos=0, retain=False)
+   client.reconnect_delay_set(min_delay=1, max_delay=120)
+   client.connect(mqttBroker, mqttport)
+   client.loop_start()
+except:
+   print("Die Ip Adresse des Brokers ist falsch!")
+   sys.exit()
+
+while 1:
+
+  vm.check_and_refresh_token()
+  vm.update_all_vehicles_with_cached_state()
+
+  string = str(vm.get_vehicle('872d889e-17f8-4af9-b394-e1f477b49c61'))
+
+  print(string)
+
+  connected = False
+  while not connected:
+    try:
+      client.reconnect()
+      connected = True
+    except:
+      print("Lost Connection to MQTT...Trying to reconnect in 2 Seconds")
+      time.sleep(2)
+
+  for searchValue in getValues:
+
+    start = string.find(searchValue)
+    end = string.find(",",start)
+
+    ret = string[start + len(searchValue):end]
+    client.publish("Kia_EV6/" + searchValue.rstrip("="), ret)
+
+  sleep(300)
