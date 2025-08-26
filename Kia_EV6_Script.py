@@ -19,7 +19,7 @@ def on_connect(client, userdata, flags, rc):
     client.publish("Kia_EV6/LWT", "Online")
 
 try:
-   client = mqtt.Client("Kia")
+   client = mqtt.Client("Kia_EV6")
    client.username_pw_set(mqttuser, mqttpasswort)
    client.on_connect = on_connect
    client.will_set("Kia_EV6/LWT", "Offline", qos=0, retain=False)
