@@ -56,13 +56,18 @@ mqttport = 1883
 
 def on_connect(client, userdata, flags, rc):
     client.publish("Kia_EV6/LWT", "Online")
+    client.subscribe("Kia_EV6/#")
+
+def on_message(client, userdata, msg):
+  print(msg.topic+" "+str(msg.payload)
+  if msg.topic == "Kia_EV6/getAll":
+    get_full_status()
 
 def get_full_status():
   vm.check_and_refresh_token()
   vm.update_all_vehicles_with_cached_state()
 
   string = str(vm.get_vehicle('872d889e-17f8-4af9-b394-e1f477b49c61'))
-
 
   for searchValue in getValues:
 
@@ -78,10 +83,21 @@ def get_full_status():
         
     client.publish("Kia_EV6/" + searchValue.rstrip("="), ret)
 
+def mqtt_reconnect():
+  connected = False
+  while not connected:
+    try:
+      client.reconnect()
+      connected = True
+    except:
+      print("Lost Connection to MQTT...Trying to reconnect in 2 Seconds")
+      time.sleep(2)
+      
 try:
    client = mqtt.Client("my_Kia_EV6")
    client.username_pw_set(mqttuser, mqttpasswort)
    client.on_connect = on_connect
+   client.on_message = on_message
    client.will_set("Kia_EV6/LWT", "Offline", qos=0, retain=False)
    client.reconnect_delay_set(min_delay=1, max_delay=120)
    client.connect(mqttBroker, mqttport)
@@ -92,13 +108,6 @@ except:
 
 while 1:
   
-  connected = False
-  while not connected:
-    try:
-      client.reconnect()
-      connected = True
-    except:
-      print("Lost Connection to MQTT...Trying to reconnect in 2 Seconds")
-      time.sleep(2)
+  mqtt_reconnect()
   
   sleep(300)
