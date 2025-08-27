@@ -8,7 +8,8 @@ from time import sleep
 from datetime import datetime, timedelta
 
 vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
-getValues = ["model='",
+getValues = ["id='",
+             "model='",
              "is_locked=",
              "odometer=",
              "ev_battery_percentage=",
@@ -89,7 +90,7 @@ def get_full_status():
   vm.check_and_refresh_token()
   vm.check_and_force_update_vehicles(3600)
 
-  string = str(vm.get_vehicle(vehicle_id))
+  string = str(vm.vehicles())
 
   for searchValue in getValues:
 
@@ -102,8 +103,11 @@ def get_full_status():
       ret = "False"
     elif ret == "1":
       ret = "True"
-        
-    client.publish("Kia_EV6/" + searchValue.rstrip("='"), ret.rstrip("'"))
+
+    if searchValue.rstrip("='") == "id":
+      client.publish("Kia_EV6/vehicle_id", ret.rstrip("'"))
+    else:
+      client.publish("Kia_EV6/" + searchValue.rstrip("='"), ret.rstrip("'"))
 
 def mqtt_reconnect():
   connected = False
