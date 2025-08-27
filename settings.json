@@ -1,13 +1,15 @@
 {
+    "mqttclientid": "my_Kia_EV6",
+    "mqttbasetopic": "/Garage/Kia/EV6/",
     "mqttbrokerip": "10.0.0.3",
-    "mqttbrokerport": "1883",
+    "mqttbrokerport": 1883,
     "mqttbrokeruser": "fhemqtt",
     "mqttbrokerpasswort": "2O9c7l1q4t5w6",
     "apiusername": "andreas@markl.biz",
     "apipassword": "2@9b7j1q4r5B6!3g8",
     "apipin": "1025",
-    "apibrand": "1",
-    "apiregion": "1",
+    "apibrand": 1,
+    "apiregion": 1,
     "apilanguage": "de",
     "apivehicleid": "872d889e-17f8-4af9-b394-e1f477b49c61"
 }
