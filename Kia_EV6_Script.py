@@ -52,6 +52,7 @@ getValues = ["id='",
              "ev_driving_range=",
              "location_latitude=",
              "location_longitude=",
+             "speed': {'value': ",
              "engine_is_running=",
              "smart_key_battery_warning_is_on=",
              "washer_fluid_warning_is_on=",
@@ -186,6 +187,8 @@ def get_full_status():
 
     if searchValue.rstrip("='") == "id":
       client.publish(mqttbasetopic + "vehicle_id", ret.rstrip("'"))
+    elif searchValue == ":speed': {'value': ":
+      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
     else:
       client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
       
