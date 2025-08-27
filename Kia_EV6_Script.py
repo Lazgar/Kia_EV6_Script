@@ -56,7 +56,7 @@ mqttport = 1883
 
 def on_connect(client, userdata, flags, rc):
     client.publish("Kia_EV6/LWT", "Online")
-    client.subscribe("Kia_EV6/#")
+    client.subscribe("Kia_EV6/getAll/#")
 
 def on_message(client, userdata, msg):
   print(msg.topic+" "+str(msg.payload))
