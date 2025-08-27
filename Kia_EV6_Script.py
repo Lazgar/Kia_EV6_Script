@@ -48,8 +48,7 @@ getValues = [
     "charging_current=",
     "battery_is_charging=",
     "target_range_charge_AC=",
-    "target_range_charge_DC=",
-    ""
+    "target_range_charge_DC="
 ]
 
 useMQTT = True
