@@ -88,7 +88,7 @@ def on_message(client, userdata, msg):
 
 def get_full_status():
   vm.check_and_refresh_token()
-  vm.check_and_force_update_vehicles(3600)
+  vm.update_all_vehicles_with_cached_state()
 
   string = str(vm.vehicles())
 
