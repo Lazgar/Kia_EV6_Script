@@ -8,5 +8,6 @@
     "apipin": "1025",
     "apibrand": "kia",
     "apiregion": "EU",
-    "apilanguage":"de" 
+    "apilanguage": "de",
+    "apivehicleid": "872d889e-17f8-4af9-b394-e1f477b49c61"
 }
