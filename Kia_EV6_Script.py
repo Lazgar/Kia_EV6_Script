@@ -7,7 +7,41 @@ import json
 from time import sleep
 from datetime import datetime, timedelta
 
-vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
+configFile = os.path.dirname(os.path.realpath(__file__)) + '/settings.json'
+
+if not os.path.exists(configFile):
+    print("Kein Configfile gefunden bitte eines anlegen.")
+    sys.exit(-1)
+
+if not os.access(configFile, os.R_OK):
+    print("ConfigFile " + configFile + " kann nicht gelesen werden!\n\n")
+    sys.exit(-2)
+
+config = json.load(open(configFile))
+
+neededConfig = ['mqttclientid', 'mqttbasetopic', 'mqttbrokerip', 'mqttbrokerport', 'mqttbrokeruser', 'mqttbrokerpasswort', "apiusername", 'apipassword', 'apipin', 'apibrand', 'apiregion', 'apilanguage', 'apivehicleid']
+for conf in neededConfig:
+    if conf not in config:
+        print(conf + ' Fehlt im Configfile!')
+        sys.exit(3)
+
+mqttclientid = config['mqttclientid']
+mqttbasetopic = config['mqttbasetopic']
+mqttbroker = config['mqttbrokerip']
+mqttport = config['mqttbrokerport']             #1883 ist der Standard Port
+mqttuser = config['mqttbrokeruser']              #wenn kein User verwendet wird leer lassen ""
+mqttpasswort = config['mqttbrokerpasswort']     #wenn kein Passwort verwendet wird leer lassen ""
+
+apiuser = config['apiusername']
+apipassword = config['apipassword']
+apipin = config['apipin']
+apibrand = config['apibrand']
+apiregion = config['apiregion']
+apilanguage = config['apilanguage']
+vehicle_id = config['apivehicleid']
+
+vm = VehicleManager(region=apiregion, brand=apibrand, username=apiuser, password=apipassword, pin=apipin, language=apilanguage, geocode_api_enable=True, geocode_api_use_email=True)
+
 getValues = ["id='",
              "model='",
              "is_locked=",
@@ -46,99 +80,92 @@ getValues = ["id='",
              "charge_limits_ac=",
              "charging_current=",
              "battery_is_charging=",
+             "battery_is_plugged_in=",
              "target_range_charge_AC=",
              "target_range_charge_DC="
             ]
 
-useMQTT = True
-mqttBroker = "10.0.0.3"
-mqttuser ="fhemqtt"
-mqttpasswort = "2O9c7l1q4t5w6"
-mqttport = 1883
-
-vehicle_id = '872d889e-17f8-4af9-b394-e1f477b49c61'
-
 def on_connect(client, userdata, flags, rc):
-    client.publish("Kia_EV6/LWT", "Online")
-    client.subscribe("Kia_EV6/getAll/#")
-    client.subscribe("Kia_EV6/charging/#")
-    client.subscribe("Kia_EV6/climate/#")
-    client.subscribe("Kia_EV6/lock_state/#")
-    client.subscribe("Kia_EV6/charge_port/#")
+    client.publish(mqttbasetopic + "LWT", "Online")
+    client.subscribe(mqttbasetopic + "getAll/#")
+    client.subscribe(mqttbasetopic + "charging/#")
+    client.subscribe(mqttbasetopic + "climate/#")
+    client.subscribe(mqttbasetopic + "lock_state/#")
+    client.subscribe(mqttbasetopic + "charge_port/#")
 
 def on_message(client, userdata, msg):
   vm.check_and_refresh_token()
   
-  if msg.topic == "Kia_EV6/getAll":
+  if msg.topic == mqttbasetopic + "getAll":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     get_full_status()
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'start'":
+  elif msg.topic == mqttbasetopic + "climate" and str(msg.payload) == "b'start'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.start_climate(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'stop'":
+  elif msg.topic == mqttbasetopic + "climate" and str(msg.payload) == "b'stop'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_climate(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'lock'":
+  elif msg.topic == mqttbasetopic + "lock_state" and str(msg.payload) == "b'lock'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.lock(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'unlock'":
+  elif msg.topic == mqttbasetopic + "lock_state" and str(msg.payload) == "b'unlock'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.unlock(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/chargeing" and str(msg.payload) == "b'start'":
+  elif msg.topic == mqttbasetopic + "chargeing" and str(msg.payload) == "b'start'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.start_charge(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/charging" and str(msg.payload) == "b'stop'":
+  elif msg.topic == mqttbasetopic + "charging" and str(msg.payload) == "b'stop'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_charge(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'open'":
+  elif msg.topic == mqttbasetopic + "charge_port" and str(msg.payload) == "b'open'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.open_charge_port(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'close'":
+  elif msg.topic == mqttbasetopic + "charge_port" and str(msg.payload) == "b'close'":
     
-    client.publish("Kia_EV6/command", "pending")
+    client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.close_charge_port(vehicle_id)
     sleep(60)
-    client.publish("Kia_EV6/command", "idle")
+    client.publish(mqttbasetopic + "command", "idle")
 
 def get_full_status():
   vm.check_and_force_update_vehicles(299)
@@ -158,9 +185,9 @@ def get_full_status():
       ret = "True"
 
     if searchValue.rstrip("='") == "id":
-      client.publish("Kia_EV6/vehicle_id", ret.rstrip("'"))
+      client.publish(mqttbasetopic + "vehicle_id", ret.rstrip("'"))
     else:
-      client.publish("Kia_EV6/" + searchValue.rstrip("='"), ret.rstrip("'"))
+      client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
       
 def mqtt_reconnect():
   connected = False
@@ -173,13 +200,13 @@ def mqtt_reconnect():
       time.sleep(2)
       
 try:
-   client = mqtt.Client("my_Kia_EV6")
+   client = mqtt.Client(mqttclientid)
    client.username_pw_set(mqttuser, mqttpasswort)
    client.on_connect = on_connect
    client.on_message = on_message
-   client.will_set("Kia_EV6/LWT", "Offline", qos=0, retain=False)
+   client.will_set(mqttbasetopic + "LWT", "Offline", qos=0, retain=False)
    client.reconnect_delay_set(min_delay=1, max_delay=120)
-   client.connect_async(mqttBroker, mqttport,30)
+   client.connect_async(mqttbroker, mqttport,119)
    client.loop_start()
 except:
    print("Die Ip Adresse des Brokers ist falsch!")
@@ -187,4 +214,4 @@ except:
 
 while 1:
   
-  sleep(60)
+  sleep(10)
