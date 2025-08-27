@@ -8,7 +8,45 @@ from time import sleep
 from datetime import datetime, timedelta
 
 vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
-getValues = ["is_locked=","odometer=","ev_battery_percentage=","air_temperature=","car_battery_percentage=","ev_driving_range=","location_latitude=","location_longitude=","engine_is_running=","smart_key_battery_warning_is_on=","washer_fluid_warning_is_on=","brake_fluid_warning_is_on=","defrost_is_on=","steering_wheel_heater_is_on=","back_window_heater_is_on=","front_left_door_is_open=","front_right_door_is_open=","back_left_door_is_open=","back_right_door_is_open=","trunk_is_open=","hood_is_open=","front_left_window_is_open=", "front_right_window_is_open=", "back_left_window_is_open=", "back_right_window_is_open=","tire_pressure_all_warning_is_on=", "tire_pressure_rear_left_warning_is_on=", "tire_pressure_front_left_warning_is_on=", "tire_pressure_front_right_warning_is_on=", "tire_pressure_rear_right_warning_is_on=","charge_port_door_is_open=","charging_power=","charge_limits_dc=","charge_limits_ac=","charging_current=","battery_is_charging=","target_range_charge_AC=","target_range_charge_DC="]
+getValues = ["is_locked=",
+             "odometer=",
+             "ev_battery_percentage=",
+             "air_temperature=",
+             "car_battery_percentage=",
+             "ev_driving_range=",
+             "location_latitude=",
+             "location_longitude=",
+             "engine_is_running=",
+             "smart_key_battery_warning_is_on=",
+             "washer_fluid_warning_is_on=",
+             "brake_fluid_warning_is_on=",
+             "defrost_is_on=",
+             "steering_wheel_heater_is_on=",
+             "back_window_heater_is_on=",
+             "front_left_door_is_open=",
+             "front_right_door_is_open=",
+             "back_left_door_is_open=",
+             "back_right_door_is_open=",
+             "trunk_is_open=",
+             "hood_is_open=",
+             "front_left_window_is_open=",
+             "front_right_window_is_open=",
+             "back_left_window_is_open=",
+             "back_right_window_is_open=",
+             "tire_pressure_all_warning_is_on=",
+             "tire_pressure_rear_left_warning_is_on=",
+             "tire_pressure_front_left_warning_is_on=",
+             "tire_pressure_front_right_warning_is_on=",
+             "tire_pressure_rear_right_warning_is_on=",
+             "charge_port_door_is_open=",
+             "charging_power=",
+             "charge_limits_dc=",
+             "charge_limits_ac=",
+             "charging_current=",
+             "battery_is_charging=",
+             "target_range_charge_AC=",
+             "target_range_charge_DC="
+            ]
 
 useMQTT = True
 mqttBroker = "10.0.0.3"
@@ -55,6 +93,12 @@ while 1:
     end = string.find(",",start)
 
     ret = string[start + len(searchValue):end]
+      
+    if ret == "0":
+      ret = "False"
+    elif ret == "1":
+      ret = "True"
+        
     client.publish("Kia_EV6/" + searchValue.rstrip("="), ret)
 
   sleep(300)
