@@ -187,10 +187,10 @@ def get_full_status():
 
     if searchValue.rstrip("='") == "id":
       client.publish(mqttbasetopic + "vehicle_id", ret.rstrip("'"))
-    elif searchValue == ":speed': {'value': ":
-      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
+    elif searchValue == "speed': {'value': ":
+      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'").lower())
     else:
-      client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
+      client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'").lower())
       
 def mqtt_reconnect():
   connected = False
