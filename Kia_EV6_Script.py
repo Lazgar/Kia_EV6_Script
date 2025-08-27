@@ -8,7 +8,8 @@ from time import sleep
 from datetime import datetime, timedelta
 
 vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
-getValues = ["is_locked=",
+getValues = ["model='"
+             "is_locked=",
              "odometer=",
              "ev_battery_percentage=",
              "air_temperature=",
@@ -54,20 +55,37 @@ mqttuser ="fhemqtt"
 mqttpasswort = "2O9c7l1q4t5w6"
 mqttport = 1883
 
+vehicle_id = "872d889e-17f8-4af9-b394-e1f477b49c61"
+
 def on_connect(client, userdata, flags, rc):
     client.publish("Kia_EV6/LWT", "Online")
     client.subscribe("Kia_EV6/getAll/#")
+    client.subscribe("Kia_EV6/charging/#")
+    client.subscribe("Kia_EV6/climate/#")
+    client.subscribe("Kia_EV6/lock_state/#")
 
 def on_message(client, userdata, msg):
   print(msg.topic+" "+str(msg.payload))
   if msg.topic == "Kia_EV6/getAll":
     get_full_status()
+  elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'start'":
+    vm.start_climate(vehicle_id)
+  elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'stop'":
+    vm.stop_climate(vehicle_id)
+  elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'lock'":
+    vm.lock(vehicle_id)
+  elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'unlock'":
+    vm.unlock(vehicle_id)
+  elif msg.topic == "Kia_EV6/chargeing" and str(msg.payload) == "b'start'":
+    vm.start_charge(vehicle_id)
+  elif msg.topic == "Kia_EV6/charging" and str(msg.payload) == "b'stop'":
+    vm.stop_charge(vehicle_id)
 
 def get_full_status():
   vm.check_and_refresh_token()
-  vm.update_all_vehicles_with_cached_state()
+  vm.check_and_force_update_vehicles(3600)
 
-  string = str(vm.get_vehicle('872d889e-17f8-4af9-b394-e1f477b49c61'))
+  string = str(vm.get_vehicle(vehicle_id))
 
   for searchValue in getValues:
 
@@ -81,7 +99,7 @@ def get_full_status():
     elif ret == "1":
       ret = "True"
         
-    client.publish("Kia_EV6/" + searchValue.rstrip("="), ret)
+    client.publish("Kia_EV6/" + searchValue.rstrip("='"), ret.rstrip("'"))
 
 def mqtt_reconnect():
   connected = False
