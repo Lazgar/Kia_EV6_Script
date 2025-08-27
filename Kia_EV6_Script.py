@@ -8,7 +8,7 @@ from time import sleep
 from datetime import datetime, timedelta
 
 vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
-getValues = ["model='"
+getValues = ["model='",
              "is_locked=",
              "odometer=",
              "ev_battery_percentage=",
