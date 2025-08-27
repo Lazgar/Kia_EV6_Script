@@ -59,7 +59,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe("Kia_EV6/#")
 
 def on_message(client, userdata, msg):
-  print(msg.topic+" "+str(msg.payload)
+  print(msg.topic+" "+str(msg.payload))
   if msg.topic == "Kia_EV6/getAll":
     get_full_status()
 
