@@ -3,10 +3,11 @@ import paho.mqtt.client as mqtt
 import sys
 import os
 import string
+import json
 from time import sleep
 from datetime import datetime, timedelta
 
-import settings.py
+import settings.json
 
 vm = VehicleManager(region=1, brand=1, username="andreas@markl.biz", password="2@9b7j1q4r5B6!3g8", pin="1025", language="de", geocode_api_enable=True, geocode_api_use_email=True)
 getValues = [
