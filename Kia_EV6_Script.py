@@ -80,6 +80,10 @@ def on_message(client, userdata, msg):
     vm.start_charge(vehicle_id)
   elif msg.topic == "Kia_EV6/charging" and str(msg.payload) == "b'stop'":
     vm.stop_charge(vehicle_id)
+  elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'open'":
+    vm.open_charge_port(vehicle_id)
+  elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'close'":
+    vm.close_charge_port(vehicle_id)
 
 def get_full_status():
   vm.check_and_refresh_token()
