@@ -56,7 +56,7 @@ mqttuser ="fhemqtt"
 mqttpasswort = "2O9c7l1q4t5w6"
 mqttport = 1883
 
-vehicle_id = "872d889e-17f8-4af9-b394-e1f477b49c61"
+vehicle_id = '872d889e-17f8-4af9-b394-e1f477b49c61'
 
 def on_connect(client, userdata, flags, rc):
     client.publish("Kia_EV6/LWT", "Online")
@@ -64,34 +64,87 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe("Kia_EV6/charging/#")
     client.subscribe("Kia_EV6/climate/#")
     client.subscribe("Kia_EV6/lock_state/#")
+    client.subscribe("Kia_EV6/charge_port/#")
 
 def on_message(client, userdata, msg):
-  print(msg.topic+" "+str(msg.payload))
+  vm.check_and_refresh_token()
+  
   if msg.topic == "Kia_EV6/getAll":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     get_full_status()
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'start'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.start_climate(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/climate" and str(msg.payload) == "b'stop'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.stop_climate(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'lock'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.lock(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/lock_state" and str(msg.payload) == "b'unlock'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.unlock(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/chargeing" and str(msg.payload) == "b'start'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.start_charge(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/charging" and str(msg.payload) == "b'stop'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.stop_charge(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'open'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.open_charge_port(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
+    
   elif msg.topic == "Kia_EV6/charge_port" and str(msg.payload) == "b'close'":
+    
+    client.publish("Kia_EV6/command", "pending")
+    client.loop(5)
     vm.close_charge_port(vehicle_id)
+    sleep(60)
+    client.publish("Kia_EV6/command", "idle")
 
 def get_full_status():
-  vm.check_and_refresh_token()
-  vm.update_all_vehicles_with_cached_state()
+  vm.check_and_force_update_vehicles(299)
 
-  string = str(vm.vehicles())
-
+  string = str(vm.vehicles)
+  
   for searchValue in getValues:
 
     start = string.find(searchValue)
@@ -108,7 +161,7 @@ def get_full_status():
       client.publish("Kia_EV6/vehicle_id", ret.rstrip("'"))
     else:
       client.publish("Kia_EV6/" + searchValue.rstrip("='"), ret.rstrip("'"))
-
+      
 def mqtt_reconnect():
   connected = False
   while not connected:
@@ -126,7 +179,7 @@ try:
    client.on_message = on_message
    client.will_set("Kia_EV6/LWT", "Offline", qos=0, retain=False)
    client.reconnect_delay_set(min_delay=1, max_delay=120)
-   client.connect(mqttBroker, mqttport)
+   client.connect_async(mqttBroker, mqttport,30)
    client.loop_start()
 except:
    print("Die Ip Adresse des Brokers ist falsch!")
@@ -134,6 +187,4 @@ except:
 
 while 1:
   
-  mqtt_reconnect()
-  
-  sleep(300)
+  sleep(60)
