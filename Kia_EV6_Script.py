@@ -24,14 +24,14 @@ for conf in neededConfig:
     if conf not in config:
         print(conf + ' Fehlt im Configfile!')
         sys.exit(3)
-
+# Laden der MQTT Konfiguration
 mqttclientid = config['mqttclientid']
 mqttbasetopic = config['mqttbasetopic']
 mqttbroker = config['mqttbrokerip']
 mqttport = config['mqttbrokerport']             #1883 ist der Standard Port
 mqttuser = config['mqttbrokeruser']              #wenn kein User verwendet wird leer lassen ""
 mqttpasswort = config['mqttbrokerpasswort']     #wenn kein Passwort verwendet wird leer lassen ""
-
+# Laden der Kia Api Konfiguration
 apiuser = config['apiusername']
 apipassword = config['apipassword']
 apipin = config['apipin']
@@ -169,7 +169,7 @@ def on_message(client, userdata, msg):
     client.publish(mqttbasetopic + "command", "idle")
 
 def get_full_status():
-  vm.check_and_force_update_vehicles(299)
+  vm.check_and_force_update_vehicles(895)
 
   string = str(vm.vehicles)
   
