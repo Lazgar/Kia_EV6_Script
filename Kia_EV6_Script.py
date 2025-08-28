@@ -192,7 +192,7 @@ def on_message(client, userdata, msg):
 
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    vm.set_charge_limits(vehicle_id,int(msgSplit[0]),int(msgSplit[1]))
+    vm.set_charge_limits(vehicle_id,msgSplit[0],msgSplit[1])
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
 
