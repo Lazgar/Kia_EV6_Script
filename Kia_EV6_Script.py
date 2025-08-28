@@ -184,7 +184,7 @@ def on_message(client, userdata, msg):
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
 
-elif msg.topic == mqttbasetopic + "targetSoC":
+  elif msg.topic == mqttbasetopic + "targetSoC":
 
     msgValue = str(msg.payload)
     msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
