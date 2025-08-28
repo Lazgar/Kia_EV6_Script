@@ -191,17 +191,7 @@ def get_full_status():
       client.publish(mqttbasetopic + "location_speed", ret.rstrip("'").lower())
     else:
       client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'").lower())
-      
-def mqtt_reconnect():
-  connected = False
-  while not connected:
-    try:
-      client.reconnect()
-      connected = True
-    except:
-      print("Lost Connection to MQTT...Trying to reconnect in 2 Seconds")
-      time.sleep(2)
-      
+            
 try:
    client = mqtt.Client(mqttclientid)
    client.username_pw_set(mqttuser, mqttpasswort)
