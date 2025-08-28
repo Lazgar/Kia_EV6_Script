@@ -130,7 +130,7 @@ def on_message(client, userdata, msg):
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "lock"
+  elif msg.topic == mqttbasetopic + "lock":
     
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
