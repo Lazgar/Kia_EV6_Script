@@ -97,24 +97,21 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(mqttbasetopic + "unlock/#")
     client.subscribe(mqttbasetopic + "charge_port/#")
     client.subscribe(mqttbasetopic + "targetSoC/#")
+    client.subscribe(mqttbasetopic + "setWindows/#")
 
 def on_message(client, userdata, msg):
   vm.check_and_refresh_token()
   
-  if msg.topic == mqttbasetopic + "getAll":
-    
+  if msg.topic == mqttbasetopic + "getAll":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     get_full_status()
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "startClimate":
-      
+  elif msg.topic == mqttbasetopic + "startClimate":      
     msgValue = str(msg.payload)
-    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-    
-    json_obj = json.loads(msgValueCleaned)
-    climateClass = ClimateRequestOptions(**json_obj)  
+    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]    
+    climateClass = ClimateRequestOptions(**json.loads(msgValueCleaned))  
     
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
@@ -122,77 +119,70 @@ def on_message(client, userdata, msg):
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "stopClimate":
-    
+  elif msg.topic == mqttbasetopic + "stopClimate":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_climate(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "lock":
-    
+  elif msg.topic == mqttbasetopic + "lock":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.lock(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "unlock":
-    
+  elif msg.topic == mqttbasetopic + "unlock":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.unlock(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "startCharge":
-    
-    msgValue = str(msg.payload)
-    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-    
-    json_obj = json.loads(msgValueCleaned)
-    chargeClass = ClimateRequestOptions(**json_obj)
-
+  elif msg.topic == mqttbasetopic + "startCharge":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.start_charge(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "stopCharge":
-    
+  elif msg.topic == mqttbasetopic + "stopCharge":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_charge(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "charge_port" and str(msg.payload) == "b'open'":
-    
+  elif msg.topic == mqttbasetopic + "charge_port":    
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    vm.open_charge_port(vehicle_id)
-    sleep(60)
-    client.publish(mqttbasetopic + "command", "idle")
-    
-  elif msg.topic == mqttbasetopic + "charge_port" and str(msg.payload) == "b'close'":
-    
-    client.publish(mqttbasetopic + "command", "pending")
-    client.loop(5)
-    vm.close_charge_port(vehicle_id)
+    if str(msg.payload) == "b'open'":
+      vm.open_charge_port(vehicle_id)
+    else:
+      vm.close_charge_port(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
 
   elif msg.topic == mqttbasetopic + "targetSoC":
-
     msgValue = str(msg.payload)
     msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-    msgSplit = msgValueCleaned.split(";")
+    jsonMsgPayload = json.loads(msgValueCleaned)
 
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    vm.set_charge_limits(vehicle_id,msgSplit[0],msgSplit[1])
+    vm.set_charge_limits(vehicle_id,jsonMsgPayload['ac'],jsonMsgPayload['dc'])
+    sleep(60)
+    client.publish(mqttbasetopic + "command", "idle")
+      
+  elif msg.topic == mqttbasetopic + "setWindows":
+    msgPayload = str(msg.payload)
+    msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]    
+    windowClass = WindowRequestOptions(**json.loads(msgPayloadCleaned)) 
+
+    client.publish(mqttbasetopic + "command", "pending")
+    client.loop(5)
+    vm.set_windows_state(vehicle_id,windowClass)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
 
