@@ -29,7 +29,7 @@ mqttclientid = config['mqttclientid']
 mqttbasetopic = config['mqttbasetopic']
 mqttbroker = config['mqttbrokerip']
 mqttport = config['mqttbrokerport']             #1883 ist der Standard Port
-mqttuser = config['mqttbrokeruser']              #wenn kein User verwendet wird leer lassen ""
+mqttuser = config['mqttbrokeruser']             #wenn kein User verwendet wird leer lassen ""
 mqttpasswort = config['mqttbrokerpasswort']     #wenn kein Passwort verwendet wird leer lassen ""
 # Laden der Kia Api Konfiguration
 apiuser = config['apiusername']
@@ -102,16 +102,16 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
   vm.check_and_refresh_token()
   
-  if msg.topic == mqttbasetopic + "getAll":    
+  if msg.topic == mqttbasetopic + "getAll":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     get_full_status()
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "startClimate":      
+  elif msg.topic == mqttbasetopic + "startClimate":
     msgValue = str(msg.payload)
-    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]    
-    climateClass = ClimateRequestOptions(**json.loads(msgValueCleaned))  
+    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
+    climateClass = ClimateRequestOptions(**json.loads(msgValueCleaned))
     
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
@@ -119,42 +119,42 @@ def on_message(client, userdata, msg):
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "stopClimate":    
+  elif msg.topic == mqttbasetopic + "stopClimate":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_climate(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "lock":    
+  elif msg.topic == mqttbasetopic + "lock":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.lock(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "unlock":    
+  elif msg.topic == mqttbasetopic + "unlock":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.unlock(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "startCharge":    
+  elif msg.topic == mqttbasetopic + "startCharge":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.start_charge(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "stopCharge":    
+  elif msg.topic == mqttbasetopic + "stopCharge": 
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.stop_charge(vehicle_id)
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
-    
-  elif msg.topic == mqttbasetopic + "charge_port":    
+
+  elif msg.topic == mqttbasetopic + "charge_port":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     if str(msg.payload) == "b'open'":
@@ -174,11 +174,11 @@ def on_message(client, userdata, msg):
     vm.set_charge_limits(vehicle_id,jsonMsgPayload['ac'],jsonMsgPayload['dc'])
     sleep(60)
     client.publish(mqttbasetopic + "command", "idle")
-      
+
   elif msg.topic == mqttbasetopic + "setWindows":
     msgPayload = str(msg.payload)
-    msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]    
-    windowClass = WindowRequestOptions(**json.loads(msgPayloadCleaned)) 
+    msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
+    windowClass = WindowRequestOptions(**json.loads(msgPayloadCleaned))
 
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
@@ -189,27 +189,29 @@ def on_message(client, userdata, msg):
 def get_full_status():
   vm.check_and_force_update_vehicles(895)
 
-  string = str(vm.vehicles)
-  
+  vehicleString = str(vm.vehicles)
+
   for searchValue in getValues:
+    start = vehicleString.find(searchValue)
+    end = vehicleString.find(",",start)
+    ret = vehicleString[start + len(searchValue):end]
 
-    start = string.find(searchValue)
-    end = string.find(",",start)
-
-    ret = string[start + len(searchValue):end]
-      
     if ret == "0":
-      ret = "False"
+      ret = "false"
     elif ret == "1":
-      ret = "True"
+      ret = "true"
+    elif ret == "True":
+      ret = "true"
+    elif ret == "False":
+      ret = "false"
 
     if searchValue.rstrip("='") == "id":
       client.publish(mqttbasetopic + "vehicle_id", ret.rstrip("'"))
     elif searchValue == "speed': {'value': ":
-      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'").lower())
+      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
     else:
-      client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'").lower())
-            
+      client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
+
 try:
    client = mqtt.Client(mqttclientid)
    client.username_pw_set(mqttuser, mqttpasswort)
