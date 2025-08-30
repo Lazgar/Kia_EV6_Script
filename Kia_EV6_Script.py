@@ -177,9 +177,11 @@ def on_message(client, userdata, msg):
 
   elif msg.topic == mqttbasetopic + "setWindows":
     msgPayload = str(msg.payload)
+    print(msgPayload)
     msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
+    print(msgPayloadCleaned)
     windowClass = WindowRequestOptions(**json.loads(msgPayloadCleaned))
-
+    print(windowClass)
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.set_windows_state(vehicle_id,windowClass)
