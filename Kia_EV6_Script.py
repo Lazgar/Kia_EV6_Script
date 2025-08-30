@@ -109,9 +109,9 @@ def on_message(client, userdata, msg):
     client.publish(mqttbasetopic + "command", "idle")
     
   elif msg.topic == mqttbasetopic + "startClimate":
-    msgValue = str(msg.payload)
-    msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-    climateClass = ClimateRequestOptions(**json.loads(msgValueCleaned))
+    msgPayload = str(msg.payload)
+    msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
+    climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
     
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
