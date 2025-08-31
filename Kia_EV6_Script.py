@@ -210,7 +210,8 @@ def get_full_status():
     if searchValue.rstrip("='") == "id":
       client.publish(mqttbasetopic + "vehicle_id", ret.rstrip("'"))
     elif searchValue == "speed': {'value': ":
-      client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
+      if ret.rstrip("'") == "true" or ret.rstrip("'") == "false":
+        client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
     else:
       client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
 
