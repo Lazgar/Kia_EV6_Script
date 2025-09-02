@@ -22,7 +22,7 @@ neededConfig = ['mqttclientid', 'mqttbasetopic', 'mqttbrokerip', 'mqttbrokerport
 for conf in neededConfig:
     if conf not in config:
         print(conf + ' Fehlt im Configfile!')
-        sys.exit(3)
+        sys.exit(-3)
 # Laden der MQTT Konfiguration
 mqttclientid = config['mqttclientid']
 mqttbasetopic = config['mqttbasetopic']
