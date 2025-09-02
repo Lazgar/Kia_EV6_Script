@@ -5,7 +5,6 @@ import os
 import string
 import json
 from time import sleep
-from datetime import datetime, timedelta
 
 configFile = os.path.dirname(os.path.realpath(__file__)) + '/settings.json'
 
