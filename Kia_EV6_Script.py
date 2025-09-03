@@ -92,8 +92,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(mqttbasetopic + "stopCharge/#")
     client.subscribe(mqttbasetopic + "startClimate/#")
     client.subscribe(mqttbasetopic + "stopClimate/#")
-    client.subscribe(mqttbasetopic + "lock/#")
-    client.subscribe(mqttbasetopic + "unlock/#")
+    client.subscribe(mqttbasetopic + "door/#")
     client.subscribe(mqttbasetopic + "charge_port/#")
     client.subscribe(mqttbasetopic + "targetSoC/#")
     client.subscribe(mqttbasetopic + "setWindows/#")
@@ -125,17 +124,13 @@ def on_message(client, userdata, msg):
     sleep(30)
     client.publish(mqttbasetopic + "command", "idle")
     
-  elif msg.topic == mqttbasetopic + "lock":
+  elif msg.topic == mqttbasetopic + "door":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    vm.lock(vehicle_id)
-    sleep(30)
-    client.publish(mqttbasetopic + "command", "idle")
-    
-  elif msg.topic == mqttbasetopic + "unlock":
-    client.publish(mqttbasetopic + "command", "pending")
-    client.loop(5)
-    vm.unlock(vehicle_id)
+    if str(msg.payload) == "b'lock'":
+      vm.lock(vehicle_id)
+    else:
+      vm.unlock(vehicle_id)
     sleep(30)
     client.publish(mqttbasetopic + "command", "idle")
     
@@ -166,21 +161,19 @@ def on_message(client, userdata, msg):
   elif msg.topic == mqttbasetopic + "targetSoC":
     msgValue = str(msg.payload)
     msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-    jsonMsgPayload = json.loads(msgValueCleaned)
+    MsgPayloadJson = json.loads(msgValueCleaned)
 
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    vm.set_charge_limits(vehicle_id,jsonMsgPayload['ac'],jsonMsgPayload['dc'])
+    vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
     sleep(30)
     client.publish(mqttbasetopic + "command", "idle")
 
   elif msg.topic == mqttbasetopic + "setWindows":
     msgPayload = str(msg.payload)
-    print(msgPayload)
     msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
-    print(msgPayloadCleaned)
     windowClass = WindowRequestOptions(**json.loads(msgPayloadCleaned))
-    print(windowClass)
+
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
     vm.set_windows_state(vehicle_id,windowClass)
