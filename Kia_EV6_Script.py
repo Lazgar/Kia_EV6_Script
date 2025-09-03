@@ -207,7 +207,13 @@ def get_full_status():
         client.publish(mqttbasetopic + "location_speed", ret.rstrip("'"))
     else:
       client.publish(mqttbasetopic + searchValue.rstrip("='"), ret.rstrip("'"))
-    client.publish(mqttbasetopic + "manufacturer", apibrand)
+        
+    if apibrand == 1:
+      client.publish(mqttbasetopic + "manufacturer", "Kia")
+    elif apibrand == 2:
+      client.publish(mqttbasetopic + "manufacturer", "Hyundai")
+    else:
+      client.publish(mqttbasetopic + "manufacturer", "Genesis")
 
 try:
    client = mqtt.Client(mqttclientid)
