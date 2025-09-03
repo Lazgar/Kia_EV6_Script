@@ -193,7 +193,7 @@ def on_message(client, userdata, msg):
 def get_full_status(force):
   if force == "true":
     vm.force_refresh_all_vehicles_states()
-  else:
+  elif force == "false":
     vm.check_and_force_update_vehicles(895)
 
   vehicleString = str(vm.vehicles)
