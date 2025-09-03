@@ -89,6 +89,7 @@ getValues = ["id='",
 def on_connect(client, userdata, flags, rc):
     client.publish(mqttbasetopic + "LWT", "Online")
     client.subscribe(mqttbasetopic + "getAll/#")
+    client.subscribe(mqttbasetopic + "forceAll/#")
     client.subscribe(mqttbasetopic + "startCharge/#")
     client.subscribe(mqttbasetopic + "stopCharge/#")
     client.subscribe(mqttbasetopic + "startClimate/#")
@@ -104,7 +105,15 @@ def on_message(client, userdata, msg):
   if msg.topic == mqttbasetopic + "getAll":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    get_full_status()
+    force = false
+    get_full_status(force)
+    client.publish(mqttbasetopic + "command", "idle")
+
+  elif msg.topic == mqttbasetopic + "forceAll":
+    client.publish(mqttbasetopic + "command", "pending")
+    client.loop(5)
+    force = true
+    get_full_status(force)
     client.publish(mqttbasetopic + "command", "idle")
     
   elif msg.topic == mqttbasetopic + "startClimate":
@@ -181,8 +190,11 @@ def on_message(client, userdata, msg):
     sleep(30)
     client.publish(mqttbasetopic + "command", "idle")
 
-def get_full_status():
-  vm.check_and_force_update_vehicles(895)
+def get_full_status(force):
+  if force == true:
+    vm.force_refresh_all_vehicles_states
+  else:
+    vm.check_and_force_update_vehicles(895)
 
   vehicleString = str(vm.vehicles)
 
