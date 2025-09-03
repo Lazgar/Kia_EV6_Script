@@ -105,14 +105,14 @@ def on_message(client, userdata, msg):
   if msg.topic == mqttbasetopic + "getAll":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    force = false
+    force = "false"
     get_full_status(force)
     client.publish(mqttbasetopic + "command", "idle")
 
   elif msg.topic == mqttbasetopic + "forceAll":
     client.publish(mqttbasetopic + "command", "pending")
     client.loop(5)
-    force = true
+    force = "true"
     get_full_status(force)
     client.publish(mqttbasetopic + "command", "idle")
     
@@ -191,7 +191,7 @@ def on_message(client, userdata, msg):
     client.publish(mqttbasetopic + "command", "idle")
 
 def get_full_status(force):
-  if force == true:
+  if force == "true":
     vm.force_refresh_all_vehicles_states
   else:
     vm.check_and_force_update_vehicles(895)
