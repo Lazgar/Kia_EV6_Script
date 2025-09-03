@@ -81,7 +81,7 @@ getValues = ["id='",
              #"charging_current=",
              "battery_is_charging=",
              "battery_is_plugged_in=",
-             "current_charge_duration",
+             "current_charge_duration=",
              "target_range_charge_AC=",
              "target_range_charge_DC="
             ]
