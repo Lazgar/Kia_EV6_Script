@@ -1,6 +1,6 @@
 {
     "mqttclientid": "my_Kia_EV6",
-    "mqttbasetopic": "/Garage/Kia/EV6/",
+    "mqttbasetopic": "Garage/Kia/EV6/",
     "mqttbrokerip": "10.0.0.3",
     "mqttbrokerport": 1883,
     "mqttbrokeruser": "fhemqtt",
