@@ -18,7 +18,7 @@ if not os.access(configFile, os.R_OK):
 
 config = json.load(open(configFile))
 
-neededConfig = ['mqttclientid', 'mqttbasetopic', 'mqttbrokerip', 'mqttbrokerport', 'mqttbrokeruser', 'mqttbrokerpasswort', "apiusername", 'apipassword', 'apipin', 'apibrand', 'apiregion', 'apilanguage', 'apivehicleid']
+neededConfig = ['mqttclientid', 'mqttbasetopic', 'mqttbrokerip', 'mqttbrokerport', 'mqttbrokeruser', 'mqttbrokerpasswort', "apiusername", 'apirefreshtoken', 'apipin', 'apibrand', 'apiregion', 'apilanguage', 'apivehicleid']
 for conf in neededConfig:
     if conf not in config:
         print(conf + ' Fehlt im Configfile!')
@@ -32,14 +32,14 @@ mqttuser = config['mqttbrokeruser']             #wenn kein User verwendet wird l
 mqttpasswort = config['mqttbrokerpasswort']     #wenn kein Passwort verwendet wird leer lassen ""
 # Laden der Kia Api Konfiguration
 apiuser = config['apiusername']
-apipassword = config['apipassword']
+apirefreshtoken = config['apirefreshtoken']
 apipin = config['apipin']
 apibrand = config['apibrand']
 apiregion = config['apiregion']
 apilanguage = config['apilanguage']
 vehicle_id = config['apivehicleid']
 
-vm = VehicleManager(region=apiregion, brand=apibrand, username=apiuser, password=apipassword, pin=apipin, language=apilanguage, geocode_api_enable=True, geocode_api_use_email=True)
+vm = VehicleManager(region=apiregion, brand=apibrand, username=apiuser, password=apirefreshtoken, pin=apipin, language=apilanguage, geocode_api_enable=True, geocode_api_use_email=True)
 
 getValues = ["id='",
              "model='",
