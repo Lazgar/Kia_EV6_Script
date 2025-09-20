@@ -104,7 +104,7 @@ def on_message(client, userdata, msg):
     vm.check_and_refresh_token()
   except:
     client.publish(mqttbasetopic + "lastScriptError", "error refreshing token")
-    continue
+    return
   
   if msg.topic == mqttbasetopic + "getAll":
     client.publish(mqttbasetopic + "command", "pending")
