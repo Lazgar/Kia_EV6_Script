@@ -100,7 +100,11 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(mqttbasetopic + "setWindows/#")
 
 def on_message(client, userdata, msg):
-  vm.check_and_refresh_token()
+  try:
+    vm.check_and_refresh_token()
+  except:
+    client.publish(mqttbasetopic + "lastScriptError", "error refreshing token")
+    continue
   
   if msg.topic == mqttbasetopic + "getAll":
     client.publish(mqttbasetopic + "command", "pending")
@@ -192,11 +196,24 @@ def on_message(client, userdata, msg):
 
 def get_full_status(force):
   if force == "true":
-    vm.force_refresh_all_vehicles_states()
-  elif force == "false":
-    vm.check_and_force_update_vehicles(895)
+    try:
+      vm.force_refresh_all_vehicles_states()
+    except:
+      client.publish(mqttbasetopic + "lastScriptError", "error force getting state")
+      continue
 
-  vehicleString = str(vm.vehicles)
+  elif force == "false":
+    try:
+      vm.check_and_force_update_vehicles(895)
+    except:
+      client.publish(mqttbasetopic + "lastScriptError", "error getting state")
+      continue
+
+  try:
+    vehicleString = str(vm.vehicles)
+  except:
+    client.publish(mqttbasetopic + "lastScriptError", "error getting vehicle data")
+    continue
 
   for searchValue in getValues:
     start = vehicleString.find(searchValue)
