@@ -200,20 +200,20 @@ def get_full_status(force):
       vm.force_refresh_all_vehicles_states()
     except:
       client.publish(mqttbasetopic + "lastScriptError", "error force getting state")
-      continue
+      return
 
   elif force == "false":
     try:
       vm.check_and_force_update_vehicles(895)
     except:
       client.publish(mqttbasetopic + "lastScriptError", "error getting state")
-      continue
+      return
 
   try:
     vehicleString = str(vm.vehicles)
   except:
     client.publish(mqttbasetopic + "lastScriptError", "error getting vehicle data")
-    continue
+    return
 
   for searchValue in getValues:
     start = vehicleString.find(searchValue)
