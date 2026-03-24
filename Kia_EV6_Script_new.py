@@ -24,10 +24,15 @@ with open(config_path) as f:
 mqtt_topic = config['mqttbasetopic']
 vehicle_id = config['apivehicleid']
 
+def nonBlocking_sleep(sec):
+    end_time = time.time() + sec 
+    while time.time() < end_time:
+      client.loop(1)
+      time.sleep(0.5)
+
 def set_command_status(status):
     """Publiziert den Status 'pending' oder 'idle' via MQTT."""
     client.publish(f"{mqtt_topic}command", status, retain=True)
-    client.loop(5)
     logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
@@ -121,7 +126,7 @@ def on_message(client, userdata, msg):
         elif topic == "door":
             set_command_status("pending")
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
         elif topic == "startClimate":
             set_command_status("pending")
@@ -130,28 +135,28 @@ def on_message(client, userdata, msg):
                 response = vm.start_climate(vehicle_id, **params)
             except:
                 response = vm.start_climate(vehicle_id, set_temp=float(payload))
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
         elif topic == "stopClimate":
             set_command_status("pending")
             response = vm.stop_climate(vehicle_id)
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
             set_command_status("pending")
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
         elif topic == "charge_port":
             set_command_status("pending")
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
         elif topic == "targetSoC":
             set_command_status("pending")
             d = json.loads(payload)
             response = vm.set_charge_limits(vehicle_id, d['ac'], d['dc'])
-            time.sleep(30)
+            nonBlocking_sleep(30)
             set_command_status("idle")
 
         if response is not None:
@@ -182,4 +187,4 @@ client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 client.loop_start()
 while True:
     
-    time.sleep(10)
+    nonBlocking_sleep(10)
