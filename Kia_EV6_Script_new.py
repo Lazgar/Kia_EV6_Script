@@ -103,7 +103,7 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_rear_right_warning": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
-        client.publish(f"{mqtt_topic}all_data", json.dumps(data_points), retain=True)
+        client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
         logger.info("Daten erfolgreich publiziert.")
         
     except Exception as e:
