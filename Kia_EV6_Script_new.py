@@ -27,7 +27,7 @@ def process_api_response(response):
     try:
         if response is None: return "Keine Antwort"
         if hasattr(response, '__dict__'): return json.dumps(vars(response), default=str)
-        return _check_response_for_errors(str(response))
+        return str(response)
     except: return "Fehler beim Parsen der Antwort"
 
 def update_and_publish(force_mode="auto"):
