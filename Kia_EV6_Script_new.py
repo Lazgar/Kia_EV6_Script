@@ -87,20 +87,20 @@ def update_and_publish(force_mode="auto"):
             "trunk_is_open": vehicle.trunk_is_open,
             "hood_is_open": vehicle.hood_is_open,
             "air_temperature": vehicle.air_temperature,
-            "air_control_is_on": vehicle.air_control_is_on,
-            "defrost_is_on": vehicle.defrost_is_on,
-            "steering_wheel_heater_is_on": vehicle.steering_wheel_heater_is_on,
-            "back_window_heater_is_on": vehicle.back_window_heater_is_on,
+            "air_control": vehicle.air_control_is_on,
+            "defrost": vehicle.defrost_is_on,
+            "steering_wheel_heater": vehicle.steering_wheel_heater_is_on,
+            "back_window_heater": vehicle.back_window_heater_is_on,
             "location_latitude": vehicle.location_latitude,
             "location_longitude": vehicle.location_longitude,
-            "smart_key_battery_warning_is_on": vehicle.smart_key_battery_warning_is_on,
-            "washer_fluid_warning_is_on": vehicle.washer_fluid_warning_is_on,
-            "brake_fluid_warning_is_on": vehicle.brake_fluid_warning_is_on,
-            "tire_pressure_all_warning_is_on": vehicle.tire_pressure_all_warning_is_on,
-            "tire_pressure_front_left_warning_is_on": vehicle.tire_pressure_front_left_warning_is_on,
-            "tire_pressure_front_right_warning_is_on": vehicle.tire_pressure_front_right_warning_is_on,
-            "tire_pressure_rear_left_warning_is_on": vehicle.tire_pressure_rear_left_warning_is_on,
-            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
+            "smart_key_battery_warning": vehicle.smart_key_battery_warning_is_on,
+            "washer_fluid_warning": vehicle.washer_fluid_warning_is_on,
+            "brake_fluid_warning": vehicle.brake_fluid_warning_is_on,
+            "tire_pressure_all_warning": vehicle.tire_pressure_all_warning_is_on,
+            "tire_pressure_front_left_warning": vehicle.tire_pressure_front_left_warning_is_on,
+            "tire_pressure_front_right_warning": vehicle.tire_pressure_front_right_warning_is_on,
+            "tire_pressure_rear_left_warning": vehicle.tire_pressure_rear_left_warning_is_on,
+            "tire_pressure_rear_right_warning": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
         client.publish(f"{mqtt_topic}all_data", json.dumps(data_points), retain=True)
