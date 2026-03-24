@@ -105,8 +105,7 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_front_left_warning_is_on": vehicle.tire_pressure_front_left_warning_is_on,
             "tire_pressure_front_right_warning_is_on": vehicle.tire_pressure_front_right_warning_is_on,
             "tire_pressure_rear_left_warning_is_on": vehicle.tire_pressure_rear_left_warning_is_on,
-            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on,
-            "last_updated_at": str(vehicle.last_updated_at)
+            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
         # Daten als JSON senden
@@ -163,7 +162,6 @@ def on_message(client, userdata, msg):
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
             time.sleep(2)
             is_busy = False
-            update_and_publish(force_mode="auto")
 
     except Exception as e:
         logger.error(f"MQTT Fehler: {str(e)}")
