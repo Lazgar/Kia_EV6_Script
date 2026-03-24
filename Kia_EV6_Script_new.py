@@ -12,11 +12,6 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# --- Status Management ---
-is_busy = False
-last_command_time = datetime.now() - timedelta(seconds=61)
-COOLDOWN_SECONDS = 60 
-
 # Config laden
 config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'settings.json')
 if not os.path.exists(config_path):
@@ -111,45 +106,56 @@ def update_and_publish(force_mode="auto"):
     finally:
         is_busy = False
 
-def on_message(client, userdata, msg):
-    global is_busy, last_command_time
+def on_message(client, userdata, msg):    
     
-    # 60s Check
-    elapsed = (datetime.now() - last_command_time).total_seconds()
-    if is_busy or elapsed < COOLDOWN_SECONDS:
-        logger.warning(f"Befehl abgelehnt: System beschaeftigt oder Cooldown ({int(COOLDOWN_SECONDS - elapsed)}s).")
-        return
-
     try:
         topic = msg.topic.replace(mqtt_topic, "")
         payload = msg.payload.decode("utf-8")
         response = None
-        
-        is_busy = True
-        last_command_time = datetime.now() # Zeitstempel setzen
+
         set_command_status("pending")
 
         if topic == "getAll":
             update_and_publish(force_mode="auto")
+            set_command_status("idle")
         elif topic == "forceAll":
             update_and_publish(force_mode="force")
+            set_command_status("idle")
         elif topic == "door":
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
         elif topic == "startClimate":
             try:
                 params = json.loads(payload)
                 response = vm.start_climate(vehicle_id, **params)
             except:
                 response = vm.start_climate(vehicle_id, set_temp=float(payload))
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
         elif topic == "stopClimate":
             response = vm.stop_climate(vehicle_id)
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
         elif topic == "charge_port":
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
         elif topic == "targetSoC":
             d = json.loads(payload)
             response = vm.set_charge_limits(vehicle_id, d['ac'], d['dc'])
+            client.loop(5)
+            time.sleep(30)
+            set_command_status("idle")
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
@@ -157,8 +163,6 @@ def on_message(client, userdata, msg):
 
     except Exception as e:
         logger.error(f"MQTT Fehler: {str(e)}")
-    finally:
-        is_busy = False
 
 # Initialisierung & Loop
 vm = VehicleManager(region=config['apiregion'], brand=config['apibrand'], username=config['apiusername'],
@@ -180,9 +184,5 @@ client.connect(config['mqttbrokerip'], config['mqttbrokerport'], 60)
 # Hintergrund-Check fuer Idle-Status
 client.loop_start()
 while True:
-    elapsed = (datetime.now() - last_command_time).total_seconds()
-    if not is_busy and elapsed >= COOLDOWN_SECONDS:
-        if getattr(client, 'last_published_status', '') != "idle":
-            set_command_status("idle")
-            client.last_published_status = "idle"
-    time.sleep(5)
+    
+    time.sleep(10)
