@@ -11,7 +11,7 @@ from hyundai_kia_connect_api import *
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# --- Optimierung 1: Locking-Flag & Status-Management ---
+# --- Optimierung: Locking-Flag & Status-Management ---
 is_busy = False
 
 # Config laden
@@ -42,8 +42,8 @@ def process_api_response(response):
     except: return "Fehler beim Parsen"
 
 def update_and_publish(force_mode="auto"):
-    """Holt alle EV6 Datenpunkte und publiziert sie."""
-    if is_busy and force_mode == "auto": # Erlaube manuelles Force auch wenn busy (optional)
+    """Holt alle EV6 Datenpunkte und publiziert sie ausschließlich als JSON."""
+    if is_busy and force_mode == "auto":
         return
 
     try:
@@ -58,7 +58,7 @@ def update_and_publish(force_mode="auto"):
         
         vehicle = vm.get_vehicle(vehicle_id)
         
-        # --- ALLE DEINE ORIGINALEN DATENPUNKTE ---
+        # --- ALLE DATENPUNKTE IN EINEM OBJEKT ---
         data_points = {
             "id": vehicle.id,
             "model": vehicle.model,
@@ -105,12 +105,9 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
-        # 1. Einzel-Topics
-        for key, value in data_points.items():
-            client.publish(f"{mqtt_topic}{key}", str(value), retain=True)
-            
-        # 2. Sammel-JSON (Optimierung 2)
+        # Nur das Sammel-JSON publizieren
         client.publish(f"{mqtt_topic}all_data", json.dumps(data_points), retain=True)
+        logger.info(f"Update via all_data JSON gesendet. SoC: {data_points['ev_battery_percentage']}%")
         
     except Exception as e:
         logger.error(f"Update Fehler: {e}")
@@ -120,7 +117,7 @@ def update_and_publish(force_mode="auto"):
 
 def on_message(client, userdata, msg):
     if is_busy:
-        logger.warning("Befehl während laufender Operation ignoriert.")
+        logger.warning("System beschäftigt. Befehl ignoriert.")
         return
 
     try:
@@ -131,7 +128,7 @@ def on_message(client, userdata, msg):
         set_busy(True)
 
         if topic == "getAll":
-            set_busy(False) # update_and_publish setzt eigenes busy
+            set_busy(False)
             update_and_publish(force_mode="auto")
         elif topic == "forceAll":
             set_busy(False)
@@ -140,11 +137,9 @@ def on_message(client, userdata, msg):
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
         elif topic == "startClimate":
             try:
-                # Versuche JSON zu parsen (z.B. {"set_temp": 22})
                 params = json.loads(payload)
                 response = vm.start_climate(vehicle_id, **params)
             except json.JSONDecodeError:
-                # Fallback: Payload ist nur die Temperatur als Zahl/String
                 response = vm.start_climate(vehicle_id, set_temp=float(payload))
         elif topic == "stopClimate":
             response = vm.stop_climate(vehicle_id)
@@ -158,7 +153,7 @@ def on_message(client, userdata, msg):
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
-            time.sleep(2) # Kurze Pause bevor Refresh
+            time.sleep(2)
             set_busy(False)
             update_and_publish(force_mode="auto")
 
@@ -174,7 +169,12 @@ vm = VehicleManager(region=config['apiregion'], brand=config['apibrand'], userna
 
 client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
-client.on_connect = lambda c, u, f, rc: (c.subscribe(f"{mqtt_topic}#"), c.publish(f"{mqtt_topic}LWT", "Online", retain=True), c.publish(f"{mqtt_topic}command", "idle", retain=True))
+
+client.on_connect = lambda c, u, f, rc: (
+    c.subscribe(f"{mqtt_topic}#"), 
+    c.publish(f"{mqtt_topic}LWT", "Online", retain=True), 
+    c.publish(f"{mqtt_topic}command", "idle", retain=True)
+)
 client.on_message = on_message
 client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
 
