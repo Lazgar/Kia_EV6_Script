@@ -39,9 +39,7 @@ def process_api_response(response):
 
 def update_and_publish(force_mode="auto"):
     """Holt alle EV6 Datenpunkte und publiziert sie."""
-    global is_busy
     try:
-        is_busy = True
         vm.check_and_refresh_token()
         
         api_res = vm.force_refresh_vehicle_state(vehicle_id) if force_mode == "force" else vm.check_and_force_update_vehicles(3598)
