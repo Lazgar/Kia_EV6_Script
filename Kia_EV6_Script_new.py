@@ -8,11 +8,9 @@ import paho.mqtt.client as mqtt
 from hyundai_kia_connect_api import *
 from datetime import datetime, timedelta
 
-# Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Config laden
 config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'settings.json')
 if not os.path.exists(config_path):
     logger.error("Kein Configfile gefunden.")
@@ -31,7 +29,6 @@ def nonBlocking_sleep(sec):
       time.sleep(0.5)
 
 def set_command_status(status):
-    """Publiziert den Status 'pending' oder 'idle' via MQTT."""
     client.publish(f"{mqtt_topic}command", status, retain=True)
     logger.info(f"System-Status: {status}")
 
@@ -44,7 +41,6 @@ def process_api_response(response):
     except: return "Fehler beim Parsen der Antwort"
 
 def update_and_publish(force_mode="auto"):
-    """Holt alle EV6 Datenpunkte und publiziert sie."""
     try:
         vm.check_and_refresh_token()
         
@@ -54,8 +50,7 @@ def update_and_publish(force_mode="auto"):
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
 
         vehicle = vm.get_vehicle(vehicle_id)
-        
-        # --- ALLE DATENPUNKTE (VOLLSTÄNDIG) ---
+
         data_points = {
             "id": vehicle.id,
             "model": vehicle.model,
@@ -108,8 +103,7 @@ def update_and_publish(force_mode="auto"):
     except Exception as e:
         logger.error(f"Update Fehler: {str(e)}")
 
-def on_message(client, userdata, msg):    
-    
+def on_message(client, userdata, msg):
     try:
         topic = msg.topic.replace(mqtt_topic + "set/", "")
         payload = msg.payload.decode("utf-8")
@@ -165,7 +159,6 @@ def on_message(client, userdata, msg):
     except Exception as e:
         logger.error(f"MQTT Fehler: {str(e)}")
 
-# Initialisierung & Loop
 vm = VehicleManager(region=config['apiregion'], brand=config['apibrand'], username=config['apiusername'],
                     password=config['apirefreshtoken'], pin=config['apipin'], language=config['apilanguage'])
 
@@ -183,7 +176,6 @@ client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
 client.reconnect_delay_set(min_delay=1, max_delay=120)
 client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 
-# Hintergrund-Check fuer Idle-Status
 client.loop_start()
 while True:
     
