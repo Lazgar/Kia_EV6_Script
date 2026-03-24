@@ -103,8 +103,6 @@ def update_and_publish(force_mode="auto"):
         
     except Exception as e:
         logger.error(f"Update Fehler: {str(e)}")
-    finally:
-        is_busy = False
 
 def on_message(client, userdata, msg):    
     
