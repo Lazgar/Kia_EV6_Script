@@ -58,7 +58,8 @@ def update_and_publish(force_mode="auto"):
         
         # --- ALLE DATENPUNKTE (VOLLSTÄNDIG) ---
         data_points = {
-            "id": vehicle.id, "model": vehicle.model,
+            "id": vehicle.id,
+            "model": vehicle.model,
             "manufacturer": "Kia" if config['apibrand'] == 1 else "Hyundai",
             "odometer": vehicle.odometer,
             "ev_battery_percentage": vehicle.ev_battery_percentage,
@@ -83,7 +84,8 @@ def update_and_publish(force_mode="auto"):
             "back_left_door_is_open": vehicle.back_left_door_is_open,
             "back_right_door_is_open": vehicle.back_right_door_is_open,
             "charge_port_door_is_open": vehicle.ev_charge_port_door_is_open,
-            "trunk_is_open": vehicle.trunk_is_open, "hood_is_open": vehicle.hood_is_open,
+            "trunk_is_open": vehicle.trunk_is_open,
+            "hood_is_open": vehicle.hood_is_open,
             "air_temperature": vehicle.air_temperature,
             "air_control_is_on": vehicle.air_control_is_on,
             "defrost_is_on": vehicle.defrost_is_on,
@@ -152,7 +154,6 @@ def on_message(client, userdata, msg):
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
             time.sleep(2)
-            update_and_publish(force_mode="auto")
 
     except Exception as e:
         logger.error(f"MQTT Fehler: {str(e)}")
