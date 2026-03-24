@@ -7,7 +7,7 @@ import time
 import paho.mqtt.client as mqtt
 from hyundai_kia_connect_api import *
 
-# Logging Setup
+# Logging Setup - Konfiguration fuer UTF-8 Ausgabe
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ vehicle_id = config['apivehicleid']
 def set_command_status(status):
     """Publiziert den Status 'pending' oder 'idle' via MQTT."""
     client.publish(f"{mqtt_topic}command", status, retain=True)
-    logger.info(f"MQTT Command Status -> {status}")
+    logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
     """Extrahiert Status-Codes (z.B. 0000) aus der API-Antwort."""
@@ -37,7 +37,7 @@ def process_api_response(response):
         if response is None: return "Keine Antwort"
         if hasattr(response, '__dict__'): return json.dumps(vars(response), default=str)
         return str(response)
-    except: return "Parsing Fehler"
+    except: return "Fehler beim Parsen der Antwort"
 
 def update_and_publish(force_mode="auto"):
     """Holt alle EV6 Datenpunkte. Wird NUR manuell via MQTT getriggert."""
@@ -109,11 +109,12 @@ def update_and_publish(force_mode="auto"):
             "last_updated_at": str(vehicle.last_updated_at)
         }
 
+        # Daten als JSON senden
         client.publish(f"{mqtt_topic}all_data", json.dumps(data_points), retain=True)
         logger.info("Daten erfolgreich publiziert.")
         
     except Exception as e:
-        logger.error(f"Update Fehler: {e}")
+        logger.error(f"Update Fehler: {str(e)}")
         client.publish(f"{mqtt_topic}lastScriptError", str(e))
     finally:
         is_busy = False
@@ -122,7 +123,7 @@ def update_and_publish(force_mode="auto"):
 def on_message(client, userdata, msg):
     global is_busy
     if is_busy:
-        logger.warning("Befehl abgelehnt: System beschäftigt.")
+        logger.warning("Befehl abgelehnt: System beschaeftigt.")
         return
 
     try:
@@ -135,7 +136,7 @@ def on_message(client, userdata, msg):
         is_busy = True
 
         if topic == "getAll":
-            is_busy = False # update_and_publish übernimmt das locking
+            is_busy = False 
             update_and_publish(force_mode="auto")
         elif topic == "forceAll":
             is_busy = False
@@ -165,7 +166,7 @@ def on_message(client, userdata, msg):
             update_and_publish(force_mode="auto")
 
     except Exception as e:
-        logger.error(f"MQTT Fehler: {e}")
+        logger.error(f"MQTT Fehler: {str(e)}")
         client.publish(f"{mqtt_topic}lastScriptError", str(e))
     finally:
         is_busy = False
