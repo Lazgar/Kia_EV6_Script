@@ -113,8 +113,7 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_front_left_warning_is_on": vehicle.tire_pressure_front_left_warning_is_on,
             "tire_pressure_front_right_warning_is_on": vehicle.tire_pressure_front_right_warning_is_on,
             "tire_pressure_rear_left_warning_is_on": vehicle.tire_pressure_rear_left_warning_is_on,
-            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on,
-            "last_updated_at": str(vehicle.last_updated_at)
+            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
         # Nur das Sammel-JSON publizieren
