@@ -107,7 +107,12 @@ def update_and_publish(force_mode="auto"):
             "location_longitude": vehicle.location_longitude,
             "smart_key_battery_warning_is_on": vehicle.smart_key_battery_warning_is_on,
             "washer_fluid_warning_is_on": vehicle.washer_fluid_warning_is_on,
-            "brake_fluid_warning_is_on": vehicle.brake_fluid_warning_is_on
+            "brake_fluid_warning_is_on": vehicle.brake_fluid_warning_is_on,
+            "tire_pressure_all_warning_is_on": vehicle.tire_pressure_all_warning_is_on,
+            "tire_pressure_front_left_warning_is_on": vehicle.tire_pressure_front_left_warning_is_on,
+            "tire_pressure_front_right_warning_is_on": vehicle.tire_pressure_front_right_warning_is_on,
+            "tire_pressure_rear_left_warning_is_on": vehicle.tire_pressure_rear_left_warning_is_on,
+            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
         }
 
         # Nur das Sammel-JSON publizieren
