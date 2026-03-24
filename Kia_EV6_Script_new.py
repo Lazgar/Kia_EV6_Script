@@ -27,7 +27,6 @@ vehicle_id = config['apivehicleid']
 def set_command_status(status):
     """Publiziert den Status 'pending' oder 'idle' via MQTT."""
     client.publish(f"{mqtt_topic}command", status, retain=True)
-    client.loop(5)
     logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
@@ -47,7 +46,6 @@ def update_and_publish(force_mode="auto"):
         
         if api_res:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
-            client.loop(5)
 
         vehicle = vm.get_vehicle(vehicle_id)
         
@@ -99,7 +97,6 @@ def update_and_publish(force_mode="auto"):
         }
 
         client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
-        client.loop(5)
         logger.info("Daten erfolgreich publiziert.")
         
     except Exception as e:
@@ -108,7 +105,7 @@ def update_and_publish(force_mode="auto"):
 def on_message(client, userdata, msg):    
     
     try:
-        topic = msg.topic.replace(mqtt_topic, "")
+        topic = msg.topic.replace(mqtt_topic + "set/", "")
         payload = msg.payload.decode("utf-8")
         response = None
 
@@ -158,7 +155,6 @@ def on_message(client, userdata, msg):
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
-            time.sleep(2)
 
     except Exception as e:
         logger.error(f"MQTT Fehler: {str(e)}")
@@ -171,7 +167,7 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 def on_connect(c, u, f, rc):
-    c.subscribe(f"{mqtt_topic}/#")
+    c.subscribe(f"{mqtt_topic}set/#")
     c.publish(f"{mqtt_topic}LWT", "Online", retain=True)
     set_command_status("idle")
 
