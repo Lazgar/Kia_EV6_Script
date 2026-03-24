@@ -27,6 +27,7 @@ vehicle_id = config['apivehicleid']
 def set_command_status(status):
     """Publiziert den Status 'pending' oder 'idle' via MQTT."""
     client.publish(f"{mqtt_topic}command", status, retain=True)
+    client.loop(5)
     logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
