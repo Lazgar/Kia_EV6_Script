@@ -167,7 +167,7 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 def on_connect(c, u, f, rc):
-    c.subscribe(f"{mqtt_topic}#")
+    c.subscribe(f"{mqtt_topic}set/#")
     c.publish(f"{mqtt_topic}LWT", "Online", retain=True)
     set_command_status("idle")
 
