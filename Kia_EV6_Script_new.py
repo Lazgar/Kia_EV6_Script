@@ -47,6 +47,7 @@ def update_and_publish(force_mode="auto"):
         
         if api_res:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
+            client.loop(5)
 
         vehicle = vm.get_vehicle(vehicle_id)
         
@@ -178,7 +179,7 @@ client.on_connect = on_connect
 client.on_message = on_message
 client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
 client.reconnect_delay_set(min_delay=1, max_delay=120)
-client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 60)
+client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 
 # Hintergrund-Check fuer Idle-Status
 client.loop_start()
