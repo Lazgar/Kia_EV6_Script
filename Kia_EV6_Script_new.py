@@ -98,6 +98,7 @@ def update_and_publish(force_mode="auto"):
         }
 
         client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
+        client.loop(5)
         logger.info("Daten erfolgreich publiziert.")
         
     except Exception as e:
