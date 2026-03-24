@@ -27,7 +27,7 @@ mqtt_topic = config['mqttbasetopic']
 vehicle_id = config['apivehicleid']
 
 def set_busy(busy_state):
-    """Setzt den internen Status und publiziert ihn via MQTT."""
+    """Setzt den internen Status und publiziert ihn via MQTT (pending/idle)."""
     global is_busy
     is_busy = busy_state
     status_text = "pending" if is_busy else "idle"
@@ -35,24 +35,18 @@ def set_busy(busy_state):
     logger.info(f"System-Status: {status_text}")
 
 def process_api_response(response):
-    """Extrahiert Status-Codes oder Details aus der API-Antwort."""
+    """Extrahiert Status-Codes (z.B. 0000) aus der API-Antwort."""
     try:
         if response is None: 
             return "Keine Antwort vom Server"
-        
-        # Falls das Objekt ein Dictionary oder eine Klasse mit Attributen ist
         if hasattr(response, '__dict__'):
-            # Wir erstellen ein Dictionary aus allen Attributen
-            res_dict = vars(response)
-            # Viele Objekte der API haben ein 'status' oder 'res_code' Attribut
-            return json.dumps(res_dict, default=str)
-            
+            return json.dumps(vars(response), default=str)
         return str(response)
     except Exception as e:
-        return f"Fehler beim Parsen der Antwort: {e}"
+        return f"Fehler beim Parsen: {e}"
 
 def update_and_publish(force_mode="auto"):
-    """Holt alle EV6 Datenpunkte und publiziert sie ausschließlich als JSON."""
+    """Holt alle EV6 Datenpunkte und gibt den API-Response-Code zurück."""
     if is_busy and force_mode == "auto":
         return
 
@@ -60,15 +54,22 @@ def update_and_publish(force_mode="auto"):
         set_busy(True)
         vm.check_and_refresh_token()
         
+        api_res = None
         if force_mode == "force":
-            logger.info("Erzwinge Live-Update...")
-            vm.force_refresh_vehicle_state(vehicle_id)
+            logger.info("Erzwinge Live-Update vom Fahrzeug...")
+            api_res = vm.force_refresh_vehicle_state(vehicle_id)
         else:
-            vm.check_and_force_update_vehicles(3598)
+            logger.info("Prüfe Intervall für Update...")
+            # Gibt die Antwort zurück, falls ein Update durchgeführt wurde
+            api_res = vm.check_and_force_update_vehicles(3598)
         
+        # NEU: Response Code (z.B. 0000) an MQTT senden, falls vorhanden
+        if api_res:
+            client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
+
         vehicle = vm.get_vehicle(vehicle_id)
         
-        # --- ALLE DATENPUNKTE IN EINEM OBJEKT ---
+        # --- ALLE DEINE ORIGINALEN DATENPUNKTE ---
         data_points = {
             "id": vehicle.id,
             "model": vehicle.model,
@@ -112,7 +113,8 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_front_left_warning_is_on": vehicle.tire_pressure_front_left_warning_is_on,
             "tire_pressure_front_right_warning_is_on": vehicle.tire_pressure_front_right_warning_is_on,
             "tire_pressure_rear_left_warning_is_on": vehicle.tire_pressure_rear_left_warning_is_on,
-            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on
+            "tire_pressure_rear_right_warning_is_on": vehicle.tire_pressure_rear_right_warning_is_on,
+            "last_updated_at": str(vehicle.last_updated_at)
         }
 
         # Nur das Sammel-JSON publizieren
@@ -127,7 +129,7 @@ def update_and_publish(force_mode="auto"):
 
 def on_message(client, userdata, msg):
     if is_busy:
-        logger.warning("System beschäftigt. Befehl ignoriert.")
+        logger.warning("Befehl während laufender Operation ignoriert.")
         return
 
     try:
@@ -138,7 +140,7 @@ def on_message(client, userdata, msg):
         set_busy(True)
 
         if topic == "getAll":
-            set_busy(False)
+            set_busy(False) # update_and_publish setzt eigenes busy
             update_and_publish(force_mode="auto")
         elif topic == "forceAll":
             set_busy(False)
@@ -149,7 +151,7 @@ def on_message(client, userdata, msg):
             try:
                 params = json.loads(payload)
                 response = vm.start_climate(vehicle_id, **params)
-            except json.JSONDecodeError:
+            except:
                 response = vm.start_climate(vehicle_id, set_temp=float(payload))
         elif topic == "stopClimate":
             response = vm.stop_climate(vehicle_id)
@@ -163,7 +165,7 @@ def on_message(client, userdata, msg):
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
-            time.sleep(2)
+            time.sleep(2) # Kurze Pause bevor Refresh
             set_busy(False)
             update_and_publish(force_mode="auto")
 
