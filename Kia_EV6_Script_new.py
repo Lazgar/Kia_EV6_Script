@@ -176,7 +176,8 @@ def on_connect(c, u, f, rc):
 client.on_connect = on_connect
 client.on_message = on_message
 client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
-client.connect(config['mqttbrokerip'], config['mqttbrokerport'], 60)
+client.reconnect_delay_set(min_delay=1, max_delay=120)
+client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 60)
 
 # Hintergrund-Check fuer Idle-Status
 client.loop_start()
