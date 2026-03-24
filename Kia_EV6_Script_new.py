@@ -35,11 +35,21 @@ def set_busy(busy_state):
     logger.info(f"System-Status: {status_text}")
 
 def process_api_response(response):
+    """Extrahiert Status-Codes oder Details aus der API-Antwort."""
     try:
-        if response is None: return "Keine Antwort"
-        if hasattr(response, '__dict__'): return json.dumps(vars(response), default=str)
+        if response is None: 
+            return "Keine Antwort vom Server"
+        
+        # Falls das Objekt ein Dictionary oder eine Klasse mit Attributen ist
+        if hasattr(response, '__dict__'):
+            # Wir erstellen ein Dictionary aus allen Attributen
+            res_dict = vars(response)
+            # Viele Objekte der API haben ein 'status' oder 'res_code' Attribut
+            return json.dumps(res_dict, default=str)
+            
         return str(response)
-    except: return "Fehler beim Parsen"
+    except Exception as e:
+        return f"Fehler beim Parsen der Antwort: {e}"
 
 def update_and_publish(force_mode="auto"):
     """Holt alle EV6 Datenpunkte und publiziert sie ausschließlich als JSON."""
