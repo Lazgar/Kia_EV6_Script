@@ -109,20 +109,22 @@ def on_message(client, userdata, msg):
         payload = msg.payload.decode("utf-8")
         response = None
 
-        set_command_status("pending")
-
         if topic == "getAll":
+            set_command_status("pending")
             update_and_publish(force_mode="auto")
             set_command_status("idle")
         elif topic == "forceAll":
+            set_command_status("pending")
             update_and_publish(force_mode="force")
             set_command_status("idle")
         elif topic == "door":
+            set_command_status("pending")
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
             client.loop(5)
             time.sleep(30)
             set_command_status("idle")
         elif topic == "startClimate":
+            set_command_status("pending")
             try:
                 params = json.loads(payload)
                 response = vm.start_climate(vehicle_id, **params)
@@ -132,21 +134,25 @@ def on_message(client, userdata, msg):
             time.sleep(30)
             set_command_status("idle")
         elif topic == "stopClimate":
+            set_command_status("pending")
             response = vm.stop_climate(vehicle_id)
             client.loop(5)
             time.sleep(30)
             set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
+            set_command_status("pending")
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
             client.loop(5)
             time.sleep(30)
             set_command_status("idle")
         elif topic == "charge_port":
+            set_command_status("pending")
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
             client.loop(5)
             time.sleep(30)
             set_command_status("idle")
         elif topic == "targetSoC":
+            set_command_status("pending")
             d = json.loads(payload)
             response = vm.set_charge_limits(vehicle_id, d['ac'], d['dc'])
             client.loop(5)
@@ -168,7 +174,7 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 def on_connect(c, u, f, rc):
-    c.subscribe(f"{mqtt_topic}set/#")
+    c.subscribe(f"{mqtt_topic}/#")
     c.publish(f"{mqtt_topic}LWT", "Online", retain=True)
     set_command_status("idle")
 
