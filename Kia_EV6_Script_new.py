@@ -201,7 +201,7 @@ def on_message(client, userdata, msg):
         logger.error(error_msg)
 
     except DeviceIDError:
-        error_msg = "Ungültige DeviceID - Relogin kann helfen"
+        error_msg = "Ungueltige DeviceID - Relogin kann helfen"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
