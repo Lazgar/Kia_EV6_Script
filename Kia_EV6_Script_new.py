@@ -53,13 +53,7 @@ def process_api_response(response):
 
 def update_and_publish(force_mode="auto"):
     try:
-        vm.check_and_refresh_token()
-
-        api_res = vm.force_refresh_vehicle_state(vehicle_id) if force_mode == "force" else vm.check_and_force_update_vehicles(3598)
-
-        if api_res:
-            client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
-
+        vm.force_refresh_vehicle_state(vehicle_id) if force_mode == "force" else vm.check_and_force_update_vehicles(3598)
         vehicle = vm.get_vehicle(vehicle_id)
 
         data_points = {
@@ -118,9 +112,10 @@ def update_and_publish(force_mode="auto"):
 
 def on_message(client, userdata, msg):
     try:
+        response = None
+        vm.check_and_refresh_token()
         topic = msg.topic.replace(mqtt_topic + "set/", "")
         payload = msg.payload.decode("utf-8")
-        response = None
 
         if topic == "getAll":
             set_command_status("pending")
@@ -134,7 +129,6 @@ def on_message(client, userdata, msg):
             set_command_status("pending")
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "startClimate":
             set_command_status("pending")
@@ -143,25 +137,21 @@ def on_message(client, userdata, msg):
             climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
             response = vm.start_climate(vehicle_id, climateClass)
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "stopClimate":
             set_command_status("pending")
             response = vm.stop_climate(vehicle_id)
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
             set_command_status("pending")
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "charge_port":
             set_command_status("pending")
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "targetSoC":
             set_command_status("pending")
@@ -170,11 +160,10 @@ def on_message(client, userdata, msg):
             MsgPayloadJson = json.loads(msgValueCleaned)
             response = vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
             nonBlocking_sleep(30)
-            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
 
         if response is not None:
-            client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
+            client.publish(f"{mqtt_topic}last_action_result", "success")
 
     except RateLimitingError:
         error_msg = "API Limit erreicht."
