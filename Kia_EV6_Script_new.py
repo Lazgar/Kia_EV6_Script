@@ -23,7 +23,7 @@ mqtt_topic = config['mqttbasetopic']
 vehicle_id = config['apivehicleid']
 
 def nonBlocking_sleep(sec):
-    end_time = time.time() + sec 
+    end_time = time.time() + sec
     while time.time() < end_time:
       client.loop(1)
       time.sleep(0.5)
@@ -43,9 +43,9 @@ def process_api_response(response):
 def update_and_publish(force_mode="auto"):
     try:
         vm.check_and_refresh_token()
-        
+
         api_res = vm.force_refresh_vehicle_state(vehicle_id) if force_mode == "force" else vm.check_and_force_update_vehicles(3598)
-        
+
         if api_res:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(api_res))
 
@@ -56,6 +56,7 @@ def update_and_publish(force_mode="auto"):
             "model": vehicle.model,
             "manufacturer": "Kia" if config['apibrand'] == 1 else "Hyundai",
             "odometer": vehicle.odometer,
+            "VIN": vehicle.VIN,
             "ev_battery_percentage": vehicle.ev_battery_percentage,
             "car_battery_percentage": vehicle.car_battery_percentage,
             "driving_range": vehicle.ev_driving_range,
@@ -99,7 +100,7 @@ def update_and_publish(force_mode="auto"):
 
         client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
         logger.info("Daten erfolgreich publiziert.")
-        
+
     except Exception as e:
         logger.error(f"Update Fehler: {str(e)}")
 
@@ -178,5 +179,5 @@ client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 
 client.loop_start()
 while True:
-    
+
     nonBlocking_sleep(10)
