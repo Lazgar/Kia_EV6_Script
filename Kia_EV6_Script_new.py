@@ -138,11 +138,10 @@ def on_message(client, userdata, msg):
             set_command_status("idle")
         elif topic == "startClimate":
             set_command_status("pending")
-            try:
-                params = json.loads(payload)
-                response = vm.start_climate(vehicle_id, **params)
-            except:
-                response = vm.start_climate(vehicle_id, set_temp=float(payload))
+            msgPayload = str(msg.payload)
+            msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
+            climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
+            response = vm.start_climate(vehicle_id, climateClass)
             nonBlocking_sleep(30)
             client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
@@ -166,8 +165,10 @@ def on_message(client, userdata, msg):
             set_command_status("idle")
         elif topic == "targetSoC":
             set_command_status("pending")
-            d = json.loads(payload)
-            response = vm.set_charge_limits(vehicle_id, d['ac'], d['dc'])
+            msgValue = str(msg.payload)
+            msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
+            MsgPayloadJson = json.loads(msgValueCleaned)
+            response = vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
             nonBlocking_sleep(30)
             client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
