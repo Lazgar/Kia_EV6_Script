@@ -100,7 +100,16 @@ def update_and_publish(force_mode="auto"):
             "tire_pressure_front_left_warning": vehicle.tire_pressure_front_left_warning_is_on,
             "tire_pressure_front_right_warning": vehicle.tire_pressure_front_right_warning_is_on,
             "tire_pressure_rear_left_warning": vehicle.tire_pressure_rear_left_warning_is_on,
-            "tire_pressure_rear_right_warning": vehicle.tire_pressure_rear_right_warning_is_on
+            "tire_pressure_rear_right_warning": vehicle.tire_pressure_rear_right_warning_is_on,
+            "headlamp_status": vehicle.headlamp_status, 
+            "headlamp_left_low": vehicle.headlamp_left_low, 
+            "headlamp_right_low": vehicle.headlamp_right_low, 
+            "stop_lamp_left": vehicle.stop_lamp_left, 
+            "stop_lamp_right": vehicle.stop_lamp_right, 
+            "turn_signal_left_front": vehicle.turn_signal_left_front, 
+            "turn_signal_right_front": vehicle.turn_signal_right_front, 
+            "turn_signal_left_rear": vehicle.turn_signal_left_rear, 
+            "turn_signal_right_rear": vehicle.turn_signal_right_rear
         }
 
         client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
