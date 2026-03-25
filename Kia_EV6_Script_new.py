@@ -6,6 +6,17 @@ import sys
 import time
 import paho.mqtt.client as mqtt
 from hyundai_kia_connect_api import *
+from hyundai_kia_connect_api.exceptions import (
+    APIError,
+    AuthenticationError,
+    DuplicateRequestError,
+    RequestTimeoutError,
+    ServiceTemporaryUnavailable,
+    NoDataFound,
+    InvalidAPIResponseError,
+    RateLimitingError,
+    DeviceIDError
+)
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -99,6 +110,7 @@ def update_and_publish(force_mode="auto"):
         }
 
         client.publish(f"{mqtt_topic}data", json.dumps(data_points), retain=True)
+        client.publish(f"{mqtt_topic}last_action_result", "success")
         logger.info("Daten erfolgreich publiziert.")
 
     except Exception as e:
@@ -122,6 +134,7 @@ def on_message(client, userdata, msg):
             set_command_status("pending")
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "startClimate":
             set_command_status("pending")
@@ -131,34 +144,72 @@ def on_message(client, userdata, msg):
             except:
                 response = vm.start_climate(vehicle_id, set_temp=float(payload))
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "stopClimate":
             set_command_status("pending")
             response = vm.stop_climate(vehicle_id)
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
             set_command_status("pending")
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "charge_port":
             set_command_status("pending")
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
         elif topic == "targetSoC":
             set_command_status("pending")
             d = json.loads(payload)
             response = vm.set_charge_limits(vehicle_id, d['ac'], d['dc'])
             nonBlocking_sleep(30)
+            client.publish(f"{mqtt_topic}last_action_result", "success")
             set_command_status("idle")
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", process_api_response(response))
 
+    except RateLimitingError:
+        error_msg = "API Limit erreicht."
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.warning(error_msg)
+        
+    except AuthenticationError:
+        error_msg = "Token ausgelaufen oder Account gesperrt."
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.error(error_msg)
+        
+    except RequestTimeoutError:
+        error_msg = "Timeout: Das Auto reagiert nicht schnell genug."
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.error(error_msg)
+
+    except ServiceTemporaryUnavailable:
+        error_msg = "Kia Connect Service nicht erreichbar"
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.error(error_msg)
+
+    except DuplicateRequestError:
+        error_msg = "Request abgelehnt da bereits ein Request verareitet wird"
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.error(error_msg)
+
+    except DeviceIDError:
+        error_msg = "Ungültige DeviceID - Relogin kann helfen"
+        client.publish(f"{mqtt_topic}last_action_result", error_msg)
+        logger.error(error_msg)
+
     except Exception as e:
-        logger.error(f"MQTT Fehler: {str(e)}")
+        # Fallback für alle anderen Fehler
+        error_msg = f"Unerwarteter Fehler: {str(e)}"
+        client.publish(f"{mqtt_topic}c", error_msg)
+        logger.error(error_msg)
 
 vm = VehicleManager(region=config['apiregion'], brand=config['apibrand'], username=config['apiusername'],
                     password=config['apirefreshtoken'], pin=config['apipin'], language=config['apilanguage'])
