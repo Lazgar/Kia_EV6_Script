@@ -37,14 +37,13 @@ def nonBlocking_sleep(sec):
     end_time = time.time() + sec
     while time.time() < end_time:
       client.loop(1)
-      time.sleep(0.5)
+      time.sleep(1)
 
 def set_command_status(status):
     client.publish(f"{mqtt_topic}command", status, retain=True)
     logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
-    """Extrahiert Status-Codes (z.B. 0000) aus der API-Antwort."""
     try:
         if response is None: return "Keine Antwort"
         if hasattr(response, '__dict__'): return json.dumps(vars(response), default=str)
@@ -210,8 +209,13 @@ def on_message(client, userdata, msg):
         client.publish(f"{mqtt_topic}c", error_msg)
         logger.error(error_msg)
 
-vm = VehicleManager(region=config['apiregion'], brand=config['apibrand'], username=config['apiusername'],
-                    password=config['apirefreshtoken'], pin=config['apipin'], language=config['apilanguage'])
+vm = VehicleManager(region=config['apiregion'], 
+                    brand=config['apibrand'], 
+                    username=config['apiusername'],
+                    password=config['apirefreshtoken'], 
+                    pin=config['apipin'], 
+                    language=config['apilanguage']
+                   )
 
 client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
