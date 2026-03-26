@@ -119,103 +119,95 @@ def update_and_publish(force_mode="auto"):
         logger.error(f"Update Fehler: {str(e)}")
 
 def on_message(client, userdata, msg):
+    final_status = "idle"
+    
     try:
+        set_command_status("pending")
         response = None
         vm.check_and_refresh_token()
         topic = msg.topic.replace(mqtt_topic + "set/", "")
         payload = msg.payload.decode("utf-8")
 
         if topic == "getAll":
-            set_command_status("pending")
             update_and_publish(force_mode="auto")
-            set_command_status("idle")
         elif topic == "forceAll":
-            set_command_status("pending")
             update_and_publish(force_mode="force")
-            set_command_status("idle")
         elif topic == "door":
-            set_command_status("pending")
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
             nonBlocking_sleep(30)
-            set_command_status("idle")
         elif topic == "startClimate":
-            set_command_status("pending")
             try:
-                client.publish(f"{mqtt_topic}test_payload", msg.payload)
-                msgPayload = str(msg.payload)
-                msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
-                climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
+                climateClass = ClimateRequestOptions(**json.loads(msg.payload))
                 response = vm.start_climate(vehicle_id, climateClass)
                 nonBlocking_sleep(30)
             except:
-                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte übergeben")
-            set_command_status("idle")
+                final_status = "fail"
+                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte uebergeben")
         elif topic == "stopClimate":
-            set_command_status("pending")
             response = vm.stop_climate(vehicle_id)
             nonBlocking_sleep(30)
-            set_command_status("idle")
         elif topic == "startCharge" or topic == "stopCharge":
-            set_command_status("pending")
             response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
             nonBlocking_sleep(30)
-            set_command_status("idle")
         elif topic == "charge_port":
-            set_command_status("pending")
             response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
             nonBlocking_sleep(30)
-            set_command_status("idle")
         elif topic == "targetSoC":
-            set_command_status("pending")
             try:
-                client.publish(f"{mqtt_topic}test_payload", msg.payload)
-                msgValue = str(msg.payload)                
-                msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-                MsgPayloadJson = json.loads(msgValueCleaned)
-                response = vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
+                jsonmsg = json.loads(msg.payload)
+                response = vm.set_charge_limits(vehicle_id,jsonmsg['ac'],jsonmsg['dc'])
                 nonBlocking_sleep(30)
             except:
-                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte übergeben")
-            set_command_status("idle")
+                final_status = "fail"
+                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte uebergeben")
 
         if response is not None:
             client.publish(f"{mqtt_topic}last_action_result", "success")
 
     except RateLimitingError:
+        final_status = "fail"
         error_msg = "API Limit erreicht."
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.warning(error_msg)
         
     except AuthenticationError:
+        final_status = "fail"
         error_msg = "Token ausgelaufen oder Account gesperrt."
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
         
     except RequestTimeoutError:
+        final_status = "fail"
         error_msg = "Timeout: Das Auto reagiert nicht schnell genug."
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
     except ServiceTemporaryUnavailable:
+        final_status = "fail"
         error_msg = "Kia Connect Service nicht erreichbar"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
     except DuplicateRequestError:
+        final_status = "fail"
         error_msg = "Request abgelehnt da bereits ein Request verareitet wird"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
     except DeviceIDError:
+        final_status = "fail"
         error_msg = "Ungueltige DeviceID - Relogin kann helfen"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
     except Exception as e:
-        # Fallback für alle anderen Fehler
+        final_status = "fail"
         error_msg = f"Unerwarteter Fehler: {str(e)}"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
+        
+    finally:
+        set_command_status(final_status)
 
 vm = VehicleManager(region=config['apiregion'], 
                     brand=config['apibrand'], 
