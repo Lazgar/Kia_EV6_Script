@@ -140,11 +140,14 @@ def on_message(client, userdata, msg):
             set_command_status("idle")
         elif topic == "startClimate":
             set_command_status("pending")
-            msgPayload = str(msg.payload)
-            msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
-            climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
-            response = vm.start_climate(vehicle_id, climateClass)
-            nonBlocking_sleep(30)
+            try:
+                msgPayload = str(msg.payload)
+                msgPayloadCleaned = msgPayload[msgPayload.find("{"):msgPayload.find("}")+1]
+                climateClass = ClimateRequestOptions(**json.loads(msgPayloadCleaned))
+                response = vm.start_climate(vehicle_id, climateClass)
+                nonBlocking_sleep(30)
+            except:
+                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte übergeben")
             set_command_status("idle")
         elif topic == "stopClimate":
             set_command_status("pending")
@@ -163,11 +166,14 @@ def on_message(client, userdata, msg):
             set_command_status("idle")
         elif topic == "targetSoC":
             set_command_status("pending")
-            msgValue = str(msg.payload)
-            msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
-            MsgPayloadJson = json.loads(msgValueCleaned)
-            response = vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
-            nonBlocking_sleep(30)
+            try:
+                msgValue = str(msg.payload)
+                msgValueCleaned = msgValue[msgValue.find("{"):msgValue.find("}")+1]
+                MsgPayloadJson = json.loads(msgValueCleaned)
+                response = vm.set_charge_limits(vehicle_id,MsgPayloadJson['ac'],MsgPayloadJson['dc'])
+                nonBlocking_sleep(30)
+            except:
+                client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte übergeben")
             set_command_status("idle")
 
         if response is not None:
