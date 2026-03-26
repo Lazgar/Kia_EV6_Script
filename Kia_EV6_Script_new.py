@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+start_time = datetime.now()
 
 config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'settings.json')
 if not os.path.exists(config_path):
@@ -37,6 +38,14 @@ def nonBlocking_sleep(sec):
     end_time = time.time() + sec
     while time.time() < end_time:
       time.sleep(1)
+
+def get_uptime():
+    diff = datetime.now() - start_time
+    days = diff.days
+    time_str = str(timedelta(seconds=diff.seconds))
+    if days > 0:
+        return f"{days} days, {time_str}"
+    return time_str
 
 def set_command_status(status):
     client.publish(f"{mqtt_topic}command", status, retain=True)
@@ -57,6 +66,7 @@ def update_and_publish(force_mode="auto"):
 
         data_points = {
             "id": vehicle.id,
+            "script_uptime": get_uptime(),
             "model": vehicle.model,
             "manufacturer": "Kia" if config['apibrand'] == 1 else "Hyundai",
             "odometer": vehicle.odometer,
