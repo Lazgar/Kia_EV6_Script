@@ -41,6 +41,7 @@ def nonBlocking_sleep(sec):
 
 def set_command_status(status):
     client.publish(f"{mqtt_topic}command", status, retain=True)
+    client.loop(3)
     logger.info(f"System-Status: {status}")
 
 def process_api_response(response):
