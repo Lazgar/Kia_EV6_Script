@@ -36,7 +36,6 @@ vehicle_id = config['apivehicleid']
 def nonBlocking_sleep(sec):
     end_time = time.time() + sec
     while time.time() < end_time:
-      client.loop(1)
       time.sleep(1)
 
 def set_command_status(status):
@@ -221,16 +220,23 @@ vm = VehicleManager(region=config['apiregion'],
 client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
+def on_disconnect(client, userdata, rc):
+    logger.warning(f"MQTT Verbindung verloren (Code {rc}). Automatisch Reconnect...")
+
 def on_connect(c, u, f, rc):
-    c.subscribe(f"{mqtt_topic}set/#")
-    c.publish(f"{mqtt_topic}LWT", "Online", retain=True)
-    set_command_status("idle")
+    if rc == 0:
+        logger.info("Verbunden mit MQTT Broker.")
+        client.subscribe(f"{mqtt_topic}set/#")
+        client.publish(f"{mqtt_topic}LWT", "Online", retain=True)
+        set_command_status("idle")
 
 client.on_connect = on_connect
+client.on_disconnect = on_disconnect
 client.on_message = on_message
 client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
 client.reconnect_delay_set(min_delay=1, max_delay=120)
-client.connect_async(config['mqttbrokerip'], config['mqttbrokerport'], 119)
+
+client.connect(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 
 client.loop_start()
 while True:
