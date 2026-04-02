@@ -40,8 +40,10 @@ def nonBlocking_sleep(sec):
       time.sleep(1)
 
 def get_uptime():
+    """Berechnet die Laufzeit seit Skriptstart"""
     diff = datetime.now() - start_time
     days = diff.days
+    # Formatiert hh:mm:ss aus den Sekunden (ohne Mikrosekunden)
     time_str = str(timedelta(seconds=diff.seconds))
     if days > 0:
         return f"{days} days, {time_str}"
