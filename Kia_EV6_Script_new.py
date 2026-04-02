@@ -137,9 +137,14 @@ def fetch_and_publish_stats():
     # Falls dein basetopic 'kia/' ist, wird daraus 'kia/stats/'
     
     try:
-        logger.info("Rufe tägliche Statistiken von der API ab...")
+        logger.info("Rufe taegliche Statistiken von der API ab...")
         # Die Library liefert meist die letzten 30 Tage
-        stats = vm.get_daily_stats(vehicle_id)
+        
+        # 1. Zuerst das Fahrzeug-Objekt holen
+        vehicle = vm.get_vehicle(vehicle_id)
+        
+        # 2. Dann die Stats ÜBER DAS FAHRZEUG-OBJEKT abrufen
+        stats = vehicle.get_daily_stats() 
         
         if not stats:
             logger.warning("Keine Statistiken von der API erhalten.")
