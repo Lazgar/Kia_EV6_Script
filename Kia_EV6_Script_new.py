@@ -134,35 +134,31 @@ def update_and_publish(force_mode="auto"):
 def fetch_and_publish_stats():
     stats_topic = "Garage/Kia/EV6/history" 
     try:
-        logger.info("Pruefe Token und lade Fahrzeugliste...")
         vm.check_and_refresh_token()
         vm.update_all_vehicles_with_cached_state()
         vehicle = vm.get_vehicle(vehicle_id)
-        
         stats = getattr(vehicle, '_daily_stats', [])
-        if not stats:
-            logger.warning("Keine Daten in _daily_stats gefunden.")
-            return
-
-        daily_list = []
-        for i, day in enumerate(stats[:14], start=1):
+        
+        # WICHTIG: Ein Dictionary {} statt einer Liste []
+        daily_data = {} 
+        
+        for i, day in enumerate(stats[:10], start=1):
+            prefix = f"{i:02d}_" 
             dist = float(day.distance)
             total_kwh = round(day.total_consumed / 1000, 2)
             avg_100km = round((total_kwh / dist * 100), 1) if dist > 0 else 0
-
-            prefix = f"{i:02d}_"
             
-            daily_list.append({
-                f"{prefix}datum": day.date.strftime("%Y-%m-%d"),
-                f"{prefix}distanz_km": dist,
-                f"{prefix}verbrauch_kwh": total_kwh,
-                f"{prefix}avg_100km": avg_100km,
-                f"{prefix}regen_kwh": round(day.regenerated_energy / 1000, 2)
-            })
+            # Wir fuegen alles direkt in das eine Dictionary ein
+            daily_data[f"{prefix}datum"] = day.date.strftime("%Y-%m-%d")
+            daily_data[f"{prefix}distanz_km"] = dist
+            daily_data[f"{prefix}avg_100km"] = avg_100km
+            daily_data[f"{prefix}verbrauch_kwh"] = total_kwh
+            daily_data[f"{prefix}regen_kwh"] = round(day.regenerated_energy / 1000, 2)
         
-        payload = json.dumps(daily_list, ensure_ascii=True)
-        client.publish(stats_topic, payload.encode('utf-8'), retain=True)
-        logger.info("Statistiken erfolgreich gesendet.")
+        # Senden des flachen Objekts
+        payload = json.dumps(daily_data, ensure_ascii=True).encode('utf-8')
+        client.publish(stats_topic, payload, retain=True)
+        
     except Exception as e:
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
 
