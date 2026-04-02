@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 start_time = datetime.now()
+last_stats_date = None
 
 config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'settings.json')
 if not os.path.exists(config_path):
@@ -129,6 +130,42 @@ def update_and_publish(force_mode="auto"):
 
     except Exception as e:
         logger.error(f"Update Fehler: {str(e)}")
+
+def fetch_and_publish_stats():
+    # Ein eigenes Topic für das Statistik-Device in FHEM
+    stats_topic = config['mqttbasetopic'].replace("data", "stats") 
+    # Falls dein basetopic 'kia/' ist, wird daraus 'kia/stats/'
+    
+    try:
+        logger.info("Rufe tägliche Statistiken von der API ab...")
+        # Die Library liefert meist die letzten 30 Tage
+        stats = vm.get_daily_stats(vehicle_id)
+        
+        if not stats:
+            logger.warning("Keine Statistiken von der API erhalten.")
+            return
+
+        daily_list = []
+        # Wir nehmen die letzten 14 Tage für eine schöne Historie in FHEM
+        for day in stats[:14]:
+            daily_list.append({
+                "date": day.date.strftime("%Y-%m-%d"),
+                "distance_km": day.distance,
+                "time_min": day.duration,
+                "speed_avg": day.average_speed,
+                "speed_max": day.max_speed,
+                "consum_kwh": getattr(day, 'consumption', 0) # Falls vom Modell geliefert
+            })
+        
+        # Sende das komplette Paket an das neue Topic
+        payload = json.dumps(daily_list)
+        client.publish(f"{stats_topic}history", payload, retain=True)
+        client.publish(f"{stats_topic}last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), retain=True)
+        
+        logger.info(f"Statistiken an {stats_topic} gesendet.")
+        
+    except Exception as e:
+        logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
 
 def on_message(client, userdata, msg):
     final_status = "idle"
@@ -252,5 +289,12 @@ client.connect(config['mqttbrokerip'], config['mqttbrokerport'], 119)
 
 client.loop_start()
 while True:
+
+    now = datetime.now()
+
+    # Täglicher Abruf um 01:00 Uhr
+    if now.hour == 1 and now.minute == 0 and last_stats_date != now.date():
+        fetch_and_publish_stats()
+        last_stats_date = now.date()
 
     nonBlocking_sleep(10)
