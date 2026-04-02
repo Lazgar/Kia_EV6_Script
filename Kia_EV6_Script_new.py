@@ -132,43 +132,37 @@ def update_and_publish(force_mode="auto"):
         logger.error(f"Update Fehler: {str(e)}")
 
 def fetch_and_publish_stats():
-    # Ein eigenes Topic für das Statistik-Device in FHEM
-    stats_topic = config['mqttbasetopic'].replace("data", "stats") 
-    # Falls dein basetopic 'kia/' ist, wird daraus 'kia/stats/'
-    
+    stats_topic = "Garage/Kia/EV6/history" 
     try:
-        logger.info("Rufe taegliche Statistiken von der API ab...")
-        # Die Library liefert meist die letzten 30 Tage
-        
-        # 1. Zuerst das Fahrzeug-Objekt holen
+        logger.info("Pruefe Token und lade Fahrzeugliste...")
+        vm.check_and_refresh_token()
+        vm.update_all_vehicles_with_cached_state()
         vehicle = vm.get_vehicle(vehicle_id)
         
-        # 2. Dann die Stats ÜBER DAS FAHRZEUG-OBJEKT abrufen
-        stats = vehicle.get_daily_stats() 
-        
+        stats = getattr(vehicle, '_daily_stats', [])
         if not stats:
-            logger.warning("Keine Statistiken von der API erhalten.")
+            logger.warning("Keine Daten in _daily_stats gefunden.")
             return
 
         daily_list = []
-        # Wir nehmen die letzten 14 Tage für eine schöne Historie in FHEM
-        for day in stats[:14]:
+        for i, day in enumerate(stats[:14], start=1):
+            dist = float(day.distance)
+            total_kwh = round(day.total_consumed / 1000, 2)
+            avg_100km = round((total_kwh / dist * 100), 1) if dist > 0 else 0
+
+            prefix = f"{i:02d}_"
+            
             daily_list.append({
-                "date": day.date.strftime("%Y-%m-%d"),
-                "distance_km": day.distance,
-                "time_min": day.duration,
-                "speed_avg": day.average_speed,
-                "speed_max": day.max_speed,
-                "consum_kwh": getattr(day, 'consumption', 0) # Falls vom Modell geliefert
+                f"{prefix}datum": day.date.strftime("%Y-%m-%d"),
+                f"{prefix}distanz_km": dist,
+                f"{prefix}verbrauch_kwh": total_kwh,
+                f"{prefix}avg_100km": avg_100km,
+                f"{prefix}regen_kwh": round(day.regenerated_energy / 1000, 2)
             })
         
-        # Sende das komplette Paket an das neue Topic
-        payload = json.dumps(daily_list)
-        client.publish(f"{stats_topic}history", payload, retain=True)
-        client.publish(f"{stats_topic}last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), retain=True)
-        
-        logger.info(f"Statistiken an {stats_topic} gesendet.")
-        
+        payload = json.dumps(daily_list, ensure_ascii=True)
+        client.publish(stats_topic, payload.encode('utf-8'), retain=True)
+        logger.info("Statistiken erfolgreich gesendet.")
     except Exception as e:
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
 
