@@ -142,14 +142,14 @@ def fetch_and_publish_stats():
         # WICHTIG: Ein Dictionary {} statt einer Liste []
         daily_data = {} 
         
-        for i, day in enumerate(stats[:10], start=1):
+        for i, day in enumerate(stats[:7], start=1):
             prefix = f"{i:02d}_" 
             dist = float(day.distance)
             total_kwh = round(day.total_consumed / 1000, 2)
             avg_100km = round((total_kwh / dist * 100), 1) if dist > 0 else 0
             
             # Wir fuegen alles direkt in das eine Dictionary ein
-            daily_data[f"{prefix}datum"] = day.date.strftime("%Y-%m-%d")
+            daily_data[f"{prefix}datum"] = day.date.strftime("%d-%m-%Y")
             daily_data[f"{prefix}distanz_km"] = dist
             daily_data[f"{prefix}avg_100km"] = avg_100km
             daily_data[f"{prefix}verbrauch_kwh"] = total_kwh
