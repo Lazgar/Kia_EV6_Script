@@ -286,8 +286,11 @@ client.will_set(f"{mqtt_topic}LWT", "Offline", retain=True)
 client.reconnect_delay_set(min_delay=1, max_delay=120)
 
 client.connect(config['mqttbrokerip'], config['mqttbrokerport'], 119)
-
 client.loop_start()
+
+logger.info("Initialer Abruf der Daily Stats beim Scriptstart...")
+fetch_and_publish_stats()
+
 while True:
 
     now = datetime.now()
