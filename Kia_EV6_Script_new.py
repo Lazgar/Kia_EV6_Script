@@ -34,6 +34,7 @@ with open(config_path) as f:
 
 mqtt_topic = config['mqttbasetopic']
 vehicle_id = config['apivehicleid']
+driving_history_days = config['drivinghistorydays']
 
 def nonBlocking_sleep(sec):
     end_time = time.time() + sec
@@ -142,7 +143,7 @@ def fetch_and_publish_stats():
         # WICHTIG: Ein Dictionary {} statt einer Liste []
         daily_data = {} 
         
-        for i, day in enumerate(stats[:7], start=1):
+        for i, day in enumerate(stats[:driving_history_days], start=1):
             prefix = f"{i:02d}_" 
             dist = float(day.distance)
             total_kwh = round(day.total_consumed / 1000, 2)
@@ -157,7 +158,7 @@ def fetch_and_publish_stats():
         
         # Senden des flachen Objekts
         payload = json.dumps(daily_data, ensure_ascii=True).encode('utf-8')
-        client.publish(stats_topic, payload, retain=True)
+        client.publish(f"{mqtt_topic}drivinghistory", payload, retain=True)
         
     except Exception as e:
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
