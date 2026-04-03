@@ -11,5 +11,6 @@
     "apibrand": 1,
     "apiregion": 1,
     "apilanguage": "de",
-    "apivehicleid": "xxx"
+    "apivehicleid": "xxx",
+    "drivinghistorydays": 20
 }
