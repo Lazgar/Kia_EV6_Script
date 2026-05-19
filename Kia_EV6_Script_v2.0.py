@@ -180,7 +180,7 @@ def on_message(client, userdata, msg):
         elif topic == "door":
             response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
             nonBlocking_sleep(30)
-        elif command == "startClimate":
+        elif topic == "startClimate":
             logging.info("MQTT Befehl empfangen: Start Klima")
             client.publish(f"{mqttbasetopic}status/command", "pending", retain=True)
             try:
