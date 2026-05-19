@@ -186,12 +186,12 @@ def on_message(client, userdata, msg):
             try:
                 # API liefert das Action-Objekt oder die ID zurück
                 action_response = vm.start_climate(vehicle_id)
-                logging.info(action_response)
+                client.publish(f"{mqttbasetopic}status/response", action_response, retain=True)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
                 action_id = getattr(action_response, 'action_id', action_response)
         
                 # Warte aktiv auf die Bestätigung vom EV6
-                if wait_for_action(vm, car_id, action_id, mqttbasetopic, client):
+                if wait_for_action(vm, vehicle_id, action_id, mqttbasetopic, client):
                     # Nur wenn das Auto Erfolg meldet, holen wir die frischen Daten ab
                     force_update_data()
             except Exception as e:
