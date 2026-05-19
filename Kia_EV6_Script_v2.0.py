@@ -182,11 +182,11 @@ def on_message(client, userdata, msg):
             nonBlocking_sleep(30)
         elif topic == "startClimate":
             logging.info("MQTT Befehl empfangen: Start Klima")
-            client.publish(f"{mqttbasetopic}status/command", "pending", retain=True)
+            client.publish(f"{mqtt_topic}status/command", "pending", retain=True)
             try:
                 # API liefert das Action-Objekt oder die ID zurueck
                 action_response = vm.start_climate(vehicle_id)
-                client.publish(f"{mqttbasetopic}status/response", action_response, retain=True)
+                client.publish(f"{mqtt_topic}status/response", action_response, retain=True)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
                 #action_id = getattr(action_response, 'action_id', action_response)
         
@@ -196,7 +196,7 @@ def on_message(client, userdata, msg):
                     force_update_data()
             except Exception as e:
                 logging.error(f"Klima Start fehlgeschlagen: {e}")
-                client.publish(f"{mqttbasetopic}status/command", "fail", retain=True)
+                client.publish(f"{mqtt_topic}status/command", "fail", retain=True)
         elif topic == "stopClimate":
             response = vm.stop_climate(vehicle_id)
             nonBlocking_sleep(30)
