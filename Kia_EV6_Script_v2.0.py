@@ -276,7 +276,7 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
-    """Fragt den Status einer Aktion ab, bis sie abgeschlossen ist oder ein Timeout läuft."""
+    """Fragt den Status einer Aktion ab, bis sie abgeschlossen ist oder ein Timeout laeuft."""
     if not action_id:
         # Manche Befehle geben keine ID zurueck oder schlagen sofort fehl
         client.publish(f"{topic_base}status/command", "fail", retain=True)
