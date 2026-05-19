@@ -185,7 +185,8 @@ def on_message(client, userdata, msg):
             client.publish(f"{mqttbasetopic}status/command", "pending", retain=True)
             try:
                 # API liefert das Action-Objekt oder die ID zurück
-                action_response = vm.start_climate(car_id)
+                action_response = vm.start_climate(vehicle_id)
+                logging.info(action_response)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
                 action_id = getattr(action_response, 'action_id', action_response)
         
