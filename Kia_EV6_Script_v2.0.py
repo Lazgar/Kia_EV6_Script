@@ -186,7 +186,7 @@ def on_message(client, userdata, msg):
             try:
                 climateClass = ClimateRequestOptions(**json.loads(msg.payload))
                 # API liefert das Action-Objekt oder die ID zurueck
-                action_response = vm.start_climate(vehicle_id,climateClass)
+                action_response = vm.start_climate(vehicle_id, climateClass)
                 client.publish(f"{mqtt_topic}response", action_response, retain=True)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
                 action_id = getattr(action_response, 'action_id', action_response)
