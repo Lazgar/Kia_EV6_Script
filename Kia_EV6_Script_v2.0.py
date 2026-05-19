@@ -182,16 +182,16 @@ def on_message(client, userdata, msg):
             nonBlocking_sleep(30)
         elif topic == "startClimate":
             logging.info("MQTT Befehl empfangen: Start Klima")
-            client.publish(f"{mqtt_topic}status/command", "pending", retain=True)
+            client.publish(f"{mqtt_topic}command", "pending", retain=True)
             try:
                 # API liefert das Action-Objekt oder die ID zurueck
                 action_response = vm.start_climate(vehicle_id)
-                client.publish(f"{mqtt_topic}status/response", action_response, retain=True)
+                client.publish(f"{mqtt_topic}response", action_response, retain=True)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
-                #action_id = getattr(action_response, 'action_id', action_response)
+                action_id = getattr(action_response, 'action_id', action_response)
         
                 # Warte aktiv auf die Bestaetigung vom EV6
-                if wait_for_action(vm, vehicle_id, action_response, mqttbasetopic, client):
+                if wait_for_action(vm, vehicle_id, action_id, mqtt_topic, client):
                     # Nur wenn das Auto Erfolg meldet, holen wir die frischen Daten ab
                     force_update_data()
             except Exception as e:
@@ -279,7 +279,7 @@ def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
     """Fragt den Status einer Aktion ab, bis sie abgeschlossen ist oder ein Timeout laeuft."""
     if not action_id:
         # Manche Befehle geben keine ID zurueck oder schlagen sofort fehl
-        client.publish(f"{topic_base}status/command", "fail", retain=True)
+        client.publish(f"{topic_base}command", "fail", retain=True)
         return False
 
     import time
@@ -295,12 +295,12 @@ def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
             client.publish(f"{topic_base}status/last_action_status", str(status), retain=False)
             
             if status == "Success":
-                client.publish(f"{topic_base}status/command", "idle", retain=True)
-                client.publish(f"{topic_base}status/last_action_result", f"Success (ID: {action_id})", retain=False)
+                client.publish(f"{topic_base}command", "idle", retain=True)
+                client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
                 return True
             elif status == "Failed":
-                client.publish(f"{topic_base}status/command", "fail", retain=True)
-                client.publish(f"{topic_base}status/last_action_result", f"Failed (ID: {action_id})", retain=False)
+                client.publish(f"{topic_base}command", "fail", retain=True)
+                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
                 
         except Exception as e:
