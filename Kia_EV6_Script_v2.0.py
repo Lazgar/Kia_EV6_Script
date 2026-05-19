@@ -184,13 +184,13 @@ def on_message(client, userdata, msg):
             logging.info("MQTT Befehl empfangen: Start Klima")
             client.publish(f"{mqttbasetopic}status/command", "pending", retain=True)
             try:
-                # API liefert das Action-Objekt oder die ID zurück
+                # API liefert das Action-Objekt oder die ID zurueck
                 action_response = vm.start_climate(vehicle_id)
                 client.publish(f"{mqttbasetopic}status/response", action_response, retain=True)
                 # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
                 action_id = getattr(action_response, 'action_id', action_response)
         
-                # Warte aktiv auf die Bestätigung vom EV6
+                # Warte aktiv auf die Bestaetigung vom EV6
                 if wait_for_action(vm, vehicle_id, action_id, mqttbasetopic, client):
                     # Nur wenn das Auto Erfolg meldet, holen wir die frischen Daten ab
                     force_update_data()
@@ -278,7 +278,7 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
     """Fragt den Status einer Aktion ab, bis sie abgeschlossen ist oder ein Timeout läuft."""
     if not action_id:
-        # Manche Befehle geben keine ID zurück oder schlagen sofort fehl
+        # Manche Befehle geben keine ID zurueck oder schlagen sofort fehl
         client.publish(f"{topic_base}status/command", "fail", retain=True)
         return False
 
@@ -288,7 +288,7 @@ def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
     for attempt in range(max_retries):
         try:
             # Funktion check_action_status der API aufrufen
-            # Je nach API-Version direkt über den VehicleManager oder die untergeordnete API
+            # Je nach API-Version direkt ueber den VehicleManager oder die untergeordnete API
             status = vm.check_action_status(vehicle_id, action_id)
             
             # Status an MQTT spiegeln (Optional für Live-Tracking im Frontend)
