@@ -322,12 +322,10 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     logger.info(f"Starte synchrone API-Ueberwachung fuer Aktion {action_id} (60s Timeout)...")
     
     try:
-        # Wir holen das echte Vehicle-Objekt
-        vehicle_obj = vm.get_vehicle(vehicle_id)
-        
-        # Aufruf über den VehicleManager
+        # Korrigierter Aufruf exakt nach den Vorgaben deines VehicleManagers:
+        # Er moechte 'vehicle_id' anstelle des Objekts haben.
         status_obj = vm.check_action_status(
-            vehicle=vehicle_obj, 
+            vehicle_id=vehicle_id, 
             action_id=action_id, 
             synchronous=True, 
             timeout=60
