@@ -343,6 +343,10 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client, cmd="",
 
 def on_disconnect(client, userdata, rc):
     logger.warning(f"MQTT Verbindung verloren (Code {rc}). Automatisch Reconnect...")
+    try:
+        client.reconnect()
+    except Exception as e:
+        logger.error(f"Erzwungener Reconnect fehlgeschlagen: {e}")
 
 def on_connect(c, u, f, rc):
     if rc == 0:
