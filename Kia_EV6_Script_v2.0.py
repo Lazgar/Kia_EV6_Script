@@ -164,60 +164,91 @@ def fetch_and_publish_stats():
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
 
 def on_message(client, userdata, msg):
+    global vm, vehicle_id, mqtt_topic
     final_status = "idle"
     
     try:
         set_command_status("pending")
-        response = None
         vm.check_and_refresh_token()
+        
+        # Topic parsen (z.B. "getAll", "startClimate", "door")
         topic = msg.topic.replace(mqtt_topic + "set/", "")
         payload = msg.payload.decode("utf-8")
-
+        
+        logger.info(f"MQTT-Befehl empfangen: {topic} mit Payload: {payload}")
+        
+        # getAll & forceAll
         if topic == "getAll":
             update_and_publish(force_mode="auto")
         elif topic == "forceAll":
             update_and_publish(force_mode="force")
+            
+        # Türen sperren / entsperren
         elif topic == "door":
-            response = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
-            nonBlocking_sleep(30)
+            res = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                update_and_publish("force")
+            else:
+                final_status = "fail"
+                
+        # Klimaanlage Starten
         elif topic == "startClimate":
-            logging.info("MQTT Befehl empfangen: Start Klima")
-            client.publish(f"{mqtt_topic}command", "pending", retain=True)
             try:
                 climateClass = ClimateRequestOptions(**json.loads(msg.payload))
-                # API liefert das Action-Objekt oder die ID zurueck
                 action_response = vm.start_climate(vehicle_id, climateClass)
-                client.publish(f"{mqtt_topic}response", action_response, retain=True)
-                # Extrahiere die ID (je nach API-Format z.B. direkt oder als Attribut)
+                
+                # Antwort-Objekt roh an MQTT senden (wie in deinem Original)
+                client.publish(f"{mqtt_topic}response", process_api_response(action_response), retain=True)
+                
                 action_id = getattr(action_response, 'action_id', action_response)
-        
-                # Warte aktiv auf die Bestaetigung vom EV6
                 if wait_for_action(vm, vehicle_id, action_id, mqtt_topic, client):
-                    # Nur wenn das Auto Erfolg meldet, holen wir die frischen Daten ab
                     update_and_publish("force")
+                else:
+                    final_status = "fail"
             except Exception as e:
                 logging.error(f"Klima Start fehlgeschlagen: {e}")
-                client.publish(f"{mqtt_topic}status/command", "fail", retain=True)
+                final_status = "fail"
+                
+        # Klimaanlage Stoppen
         elif topic == "stopClimate":
-            response = vm.stop_climate(vehicle_id)
-            nonBlocking_sleep(30)
+            res = vm.stop_climate(vehicle_id)
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                update_and_publish("force")
+            else:
+                final_status = "fail"
+                
+        # Laden starten / stoppen
         elif topic == "startCharge" or topic == "stopCharge":
-            response = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
-            nonBlocking_sleep(30)
+            res = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                update_and_publish("force")
+            else:
+                final_status = "fail"
+                
+        # Ladeklappe steuern
         elif topic == "charge_port":
-            response = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
-            nonBlocking_sleep(30)
+            res = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                update_and_publish("force")
+            else:
+                final_status = "fail"
+                
+        # Ladelimits (Target SoC) setzen
         elif topic == "targetSoC":
             try:
-                jsonmsg = json.loads(msg.payload)
-                response = vm.set_charge_limits(vehicle_id,jsonmsg['ac'],jsonmsg['dc'])
-                nonBlocking_sleep(30)
-            except:
+                jsonmsg = json.loads(payload)
+                res = vm.set_charge_limits(vehicle_id, jsonmsg['ac'], jsonmsg['dc'])
+                if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                    update_and_publish("force")
+                else:
+                    final_status = "fail"
+            except Exception as e:
                 final_status = "fail"
                 client.publish(f"{mqtt_topic}last_action_result", "ungueltige Werte uebergeben")
-
-        if response is not None:
-            client.publish(f"{mqtt_topic}last_action_result", "success")
+                logger.error(f"TargetSoC Fehler: {e}")
+        else:
+            logger.warning(f"Unbekannter Befehl erhalten: {topic}")
+            final_status = "fail"
 
     except RateLimitingError:
         final_status = "fail"
@@ -245,7 +276,7 @@ def on_message(client, userdata, msg):
 
     except DuplicateRequestError:
         final_status = "fail"
-        error_msg = "Request abgelehnt da bereits ein Request verareitet wird"
+        error_msg = "Request abgelehnt da bereits ein Request verarbeitet wird"
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
 
@@ -261,8 +292,9 @@ def on_message(client, userdata, msg):
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
         
-#    finally:
-#        set_command_status(final_status)
+    finally:
+        # Reaktiviert, damit der Systemstatus am Ende des Befehls wieder auf idle/fail springt
+        set_command_status(final_status)
 
 vm = VehicleManager(region=config['apiregion'], 
                     brand=config['apibrand'], 
@@ -276,31 +308,27 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
-def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
+def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """Fragt den Status einer Aktion ab, bis sie abgeschlossen ist oder ein Timeout laeuft."""
+    action_id = getattr(action_response, 'action_id', action_response)
+    
     if not action_id:
-        # Manche Befehle geben keine ID zurueck oder schlagen sofort fehl
-        client.publish(f"{topic_base}command", "fail", retain=True)
+        client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    import time
     max_retries = 12  # 12 Versuche * 5 Sekunden = 60 Sekunden maximales Timeout
     
     for attempt in range(max_retries):
         try:
-            # Funktion check_action_status der API aufrufen
-            # Je nach API-Version direkt ueber den VehicleManager oder die untergeordnete API
             status = vm.check_action_status(vehicle_id, action_id)
+            logger.info(f"Aktions-Status (Versuch {attempt+1}/{max_retries}): {status}")
             
-            # Status an MQTT spiegeln (Optional für Live-Tracking im Frontend)
             client.publish(f"{topic_base}status/last_action_status", str(status), retain=False)
             
             if status == "Success":
-                client.publish(f"{topic_base}command", "idle", retain=True)
                 client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
                 return True
             elif status == "Failed":
-                client.publish(f"{topic_base}command", "fail", retain=True)
                 client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
                 
@@ -309,9 +337,7 @@ def wait_for_action(vm, vehicle_id, action_id, topic_base, client):
             
         time.sleep(5)
         
-    # Timeout erreicht
-    client.publish(f"{topic_base}status/command", "fail", retain=True)
-    client.publish(f"{topic_base}status/last_action_result", f"Timeout waiting for action {action_id}", retain=False)
+    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
 
 def on_disconnect(client, userdata, rc):
