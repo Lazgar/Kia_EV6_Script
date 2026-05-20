@@ -310,7 +310,7 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Nutzt die synchrone Überwachung der API.
+    Nutzt die synchrone Ueberwachung der API.
     Wartet blockierungsarm im Hintergrund-Thread, bis Kia Vollzug meldet.
     """
     action_id = getattr(action_response, 'action_id', action_response)
@@ -319,14 +319,14 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    logger.info(f"Starte synchrone API-Überwachung für Aktion {action_id} (60s Timeout)...")
+    logger.info(f"Starte synchrone API-Ueberwachung fuer Aktion {action_id} (60s Timeout)...")
     
     try:
-        # Wir holen das echte Vehicle-Objekt, da die Funktion das benötigt
+        # Wir holen das echte Vehicle-Objekt, da die Funktion das benoetigt
         vehicle_obj = vm.get_vehicle(vehicle_id)
         
         # Aufruf mit synchronous=True und 60 Sekunden Timeout.
-        # Die API pollt nun intern alle 5 Sekunden selbstständig!
+        # Die API pollt nun intern alle 5 Sekunden selbststaendig!
         status_obj = vm.check_action_status(
             token=vm.token, 
             vehicle=vehicle_obj, 
@@ -339,24 +339,24 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
         logger.info(f"Synchrone API-Antwort erhalten: {status_obj}")
         client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
         
-        # Auswertung des finalen Status, den die API zurückliefert
+        # Auswertung des finalen Status, den die API zurueckliefert
         if "success" in status_str:
             client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
             return True
         elif "timeout" in status_str:
-            logger.warning("API-Schnittstelle lief in einen Timeout. Prüfe Fahrzeug-Live-Status...")
+            logger.warning("API-Schnittstelle lief in einen Timeout. Pruefe Fahrzeug-Live-Status...")
             # Fallback: Hat das Auto es trotzdem gemerkt?
             vm.update_vehicle_with_id(vehicle_id, force_refresh=False)
             if vm.get_vehicle(vehicle_id).air_control_is_on:
-                logger.info("Auto meldet: Klima läuft! Werte Timeout als Erfolg.")
+                logger.info("Auto meldet: Klima laeuft! Werte Timeout als Erfolg.")
                 return True
         
-        # Für alle anderen Zustände (FAILED, UNKNOWN)
+        # Fuer alle anderen Zustaende (FAILED, UNKNOWN)
         client.publish(f"{topic_base}last_action_result", f"Failed or Unknown ({status_obj})", retain=False)
         return False
             
     except Exception as e:
-        logger.error(f"Fehler bei der synchronen Statusüberwachung: {e}")
+        logger.error(f"Fehler bei der synchronen Statusueberwachung: {e}")
         client.publish(f"{topic_base}last_action_result", f"Error: {str(e)}", retain=False)
         return False
 
