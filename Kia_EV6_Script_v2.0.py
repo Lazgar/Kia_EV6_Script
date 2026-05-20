@@ -306,63 +306,31 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
-def get_latest_record_id(vm, vehicle_id):
-    """
-    Fragt die Benachrichtigungsliste offiziell ueber die interne 
-    api-Instanz des VehicleManagers ab, um die recordId zu ermitteln.
-    """
-    try:
-        # Wir holen das echte Vehicle-Objekt aus dem Manager
-        vehicle_obj = vm.get_vehicle(vehicle_id)
-        
-        # Zugriff auf die Url und die Header ueber das gekapselte api-Objekt
-        url = vm.api.SPA_API_URL + "notifications/" + vehicle_id + "/records"
-        headers = vm.api._get_authenticated_headers(
-            vm.api.token, vehicle_obj.ccu_ccs2_protocol_support
-        )
-        
-        import requests
-        response = requests.get(url, headers=headers).json()
-        
-        # Wenn Eintraege vorhanden sind, nehmen wir den neuesten (ersten) Eintrag
-        if response and "resMsg" in response and len(response["resMsg"]) > 0:
-            latest_action = response["resMsg"][0] # Index 0 ist das neueste Element
-            r_id = latest_action.get("recordId")
-            logger.info(f"Echte recordId aus Backend geladen: {r_id} (Dienst: {latest_action.get('serviceName')})")
-            return r_id
-    except Exception as e:
-        logger.warning(f"Konnte recordId nicht aus Notification-Liste extrahieren: {e}")
-    
-    return None
-
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Wartet kurz, zieht die echte recordId und pollt check_action_status.
+    Fragt den Status der Aktion strikt ueber check_action_status ab.
+    Ignoriert anfaengliche UNKNOWN-Zustaende, bis der Kia-Server die ID registriert.
     """
-    # Dem Server 2 Sekunden Zeit geben, den Notification-Eintrag zu schreiben
-    time.sleep(2) 
-    real_action_id = get_latest_record_id(vm, vehicle_id)
+    # Nimmt den nackten msgId-String entgegen
+    action_id = getattr(action_response, 'action_id', action_response)
     
-    # Fallback auf die msgId, falls die Notification-Liste leer war
-    if not real_action_id:
-        real_action_id = getattr(action_response, 'action_id', action_response)
-        logger.warning(f"Nutze msgId als Fallback: {real_action_id}")
-
-    if not real_action_id:
+    if not action_id:
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    max_retries = 15  
-    logger.info(f"Starte check_action_status Polling fuer ID: {real_action_id}")
+    max_retries = 14  # 14 Versuche * 5 Sekunden = 70 Sekunden maximales Polling
+    logger.info(f"Starte check_action_status Polling fuer ID: {action_id}")
     
     for attempt in range(max_retries):
         try:
+            # Wir nutzen synchronous=False, um die Schleifen-Kontrolle im Script zu behalten
             status_obj = vm.check_action_status(
                 vehicle_id=vehicle_id, 
-                action_id=real_action_id, 
+                action_id=action_id, 
                 synchronous=False
             )
             
+            # Umwandlung des Enums in reinen Text (z.B. "order_status.success" -> "success")
             status_str = str(status_obj).lower()
             if "." in status_str:
                 status_str = status_str.split(".")[-1]
@@ -370,19 +338,26 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
             logger.info(f"API-Abfrage {attempt+1}/{max_retries}: {status_obj} (Erkannt als: {status_str})")
             client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
             
+            # Erfolg: Der Server hat die ID zugeordnet und meldet Vollzug
             if "success" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Success (ID: {real_action_id})", retain=False)
+                client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
                 return True
+                
+            # Fehler: Der Befehl wurde vom Server oder Auto explizit abgelehnt
             elif "fail" in status_str or "denied" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {real_action_id})", retain=False)
+                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
                 
+            # Wenn der Status "unknown", "pending" oder "processing" ist,
+            # brechen wir NICHT ab, sondern geben dem Kia-Server Zeit für die Zuweisung.
+            
         except Exception as e:
             logging.warning(f"Fehler bei check_action_status Aufruf: {e}")
             
         time.sleep(5)
         
-    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {real_action_id}", retain=False)
+    # Timeout nach 70 Sekunden erreicht
+    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
 
 def on_disconnect(client, userdata, rc):
