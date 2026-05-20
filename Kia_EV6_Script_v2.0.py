@@ -158,7 +158,7 @@ def fetch_and_publish_stats():
         
         # Senden des flachen Objekts
         payload = json.dumps(daily_data, ensure_ascii=True).encode('utf-8')
-        client.publish({stats_topic}, payload, retain=True)
+        client.publish(stats_topic, payload, retain=True)
         
     except Exception as e:
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
