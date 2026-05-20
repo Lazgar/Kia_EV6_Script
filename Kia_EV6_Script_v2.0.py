@@ -194,7 +194,7 @@ def on_message(client, userdata, msg):
                 # Warte aktiv auf die Bestaetigung vom EV6
                 if wait_for_action(vm, vehicle_id, action_id, mqtt_topic, client):
                     # Nur wenn das Auto Erfolg meldet, holen wir die frischen Daten ab
-                    force_update_data()
+                    update_and_publish("force")
             except Exception as e:
                 logging.error(f"Klima Start fehlgeschlagen: {e}")
                 client.publish(f"{mqtt_topic}status/command", "fail", retain=True)
@@ -261,8 +261,8 @@ def on_message(client, userdata, msg):
         client.publish(f"{mqtt_topic}last_action_result", error_msg)
         logger.error(error_msg)
         
-    finally:
-        set_command_status(final_status)
+#    finally:
+#        set_command_status(final_status)
 
 vm = VehicleManager(region=config['apiregion'], 
                     brand=config['apibrand'], 
