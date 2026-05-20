@@ -186,7 +186,7 @@ def on_message(client, userdata, msg):
         # Türen sperren / entsperren
         elif topic == "door":
             res = vm.lock(vehicle_id) if payload.lower() == "lock" else vm.unlock(vehicle_id)
-            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                 update_and_publish("force")
             else:
                 final_status = "fail"
@@ -199,7 +199,7 @@ def on_message(client, userdata, msg):
                 
                 client.publish(f"{mqtt_topic}response", str(action_response), retain=True)
                 
-                if wait_for_action(vm, vehicle_id, action_response, mqtt_topic, client):
+                if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                     update_and_publish("force")
                 else:
                     final_status = "fail"
@@ -210,7 +210,7 @@ def on_message(client, userdata, msg):
         # Klimaanlage Stoppen
         elif topic == "stopClimate":
             res = vm.stop_climate(vehicle_id)
-            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                 update_and_publish("force")
             else:
                 final_status = "fail"
@@ -218,7 +218,7 @@ def on_message(client, userdata, msg):
         # Laden starten / stoppen
         elif topic == "startCharge" or topic == "stopCharge":
             res = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
-            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                 update_and_publish("force")
             else:
                 final_status = "fail"
@@ -226,7 +226,7 @@ def on_message(client, userdata, msg):
         # Ladeklappe steuern
         elif topic == "charge_port":
             res = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
-            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+            if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                 update_and_publish("force")
             else:
                 final_status = "fail"
@@ -236,7 +236,7 @@ def on_message(client, userdata, msg):
             try:
                 jsonmsg = json.loads(payload)
                 res = vm.set_charge_limits(vehicle_id, jsonmsg['ac'], jsonmsg['dc'])
-                if wait_for_action(vm, vehicle_id, res, mqtt_topic, client):
+                if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                     update_and_publish("force")
                 else:
                     final_status = "fail"
@@ -306,79 +306,41 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
-def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
+def wait_for_action(vm, vehicle_id, action_response, topic_base, client, cmd="", payload=""):
     """
-    Kombiniert check_action_status mit einer intelligenten Live-Zustandspruefung.
-    Nutzt die nativen Update-Befehle deiner API-Version.
+    Universelle Statusabfrage fuer alle Befehle, inkl. dynamischem Zustand-Check.
     """
     action_id = getattr(action_response, 'action_id', action_response)
-    
-    if not action_id:
-        client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
-        return False
+    if not action_id: return False
 
-    max_retries = 12  # 12 Versuche * 5 Sekunden = 60 Sekunden maximales Polling
-    logger.info(f"Starte check_action_status Polling fuer ID: {action_id}")
-    
+    max_retries = 12
     for attempt in range(max_retries):
         try:
-            # 1. Device-ID Refresh fuer die EU-Region
+            # EU-Device-ID Refresh
             new_device_id = vm.api._get_device_id(vm.api._get_stamp())
-            if hasattr(vm.api, '_token') and vm.api._token is not None:
-                vm.api._token.device_id = new_device_id
-            elif hasattr(vm.api, 'token') and vm.api.token is not None:
-                vm.api.token.device_id = new_device_id
+            if hasattr(vm.api, '_token'): vm.api._token.device_id = new_device_id
             
-            # 2. Regulaerer check_action_status Aufruf
-            status_obj = vm.check_action_status(
-                vehicle_id=vehicle_id, 
-                action_id=action_id, 
-                synchronous=False
-            )
-            
+            # API Status Check
+            status_obj = vm.check_action_status(vehicle_id=vehicle_id, action_id=action_id, synchronous=False)
             status_str = str(status_obj).lower()
-            if "." in status_str:
-                status_str = status_str.split(".")[-1]
-                
-            logger.info(f"API-Abfrage {attempt+1}/{max_retries}: {status_obj} (Erkannt als: {status_str})")
-            client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
             
-            if "success" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
-                return True
-            elif "fail" in status_str or "denied" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
-                return False
+            if "success" in status_str: return True
+            if "fail" in status_str or "denied" in status_str: return False
                 
-            # 3. DIE HYBRID-WEICHE: Ab dem 5. Versuch prüfen wir parallel das Auto
-            if attempt >= 4 and "unknown" in status_str:
-                # KORREKTUR: Nutzt die Cache-Aktualisierung deiner API-Version
+            # UNIVERSELLE HYBRID-WEICHE: Ab Versuch 5 Zustand pruefen
+            if attempt >= 4:
                 vm.check_and_force_update_vehicles(3598)
                 vehicle = vm.get_vehicle(vehicle_id)
                 
-                if vehicle.air_control_is_on:
-                    logger.info("Hybrid-Erkennung erfolgreich! EV6 meldet: Klimaanlage laeuft bereits.")
-                    client.publish(f"{topic_base}last_action_result", f"Success via Live-Check (ID: {action_id})", retain=False)
-                    return True
+                # Dynamische Weiche je nach Befehl
+                if cmd in ["startClimate", "stopClimate"] and vehicle.air_control_is_on == (cmd == "startClimate"): return True
+                elif cmd == "door" and vehicle.is_locked == (payload.lower() == "lock"): return True
+                elif cmd in ["startCharge", "stopCharge"] and vehicle.ev_battery_is_charging == (cmd == "startCharge"): return True
+                elif cmd == "charge_port" and vehicle.ev_charge_port_door_is_open == (payload.lower() == "open"): return True
+                elif cmd == "targetSoC": return True # Setpoint accepted
             
-        except Exception as e:
-            logging.warning(f"Fehler bei check_action_status oder Statusabgleich: {e}")
-            
+        except Exception as e: logging.warning(f"Fehler: {e}")
         time.sleep(5)
-        
-    # Finaler Rettungsversuch nach 60 Sekunden via Force-Refresh direkt vom Auto
-    logger.warning("Kein eindeutiger API-Status nach 60s. Erzwinge Live-Refresh vom EV6...")
-    try:
-        # KORREKTUR: Nutzt deinen nativen Befehl fuer das Aufwecken des Autos
-        vm.force_refresh_vehicle_state(vehicle_id)
-        if vm.get_vehicle(vehicle_id).air_control_is_on:
-            logger.info("Klimaanlage laeuft nach Force-Refresh! Setze auf Success.")
-            client.publish(f"{topic_base}last_action_result", f"Success via Force-Check (ID: {action_id})", retain=False)
-            return True
-    except Exception as e:
-        logger.error(f"Finaler Force-Refresh fehlgeschlagen: {e}")
-
-    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
 
 def on_disconnect(client, userdata, rc):
