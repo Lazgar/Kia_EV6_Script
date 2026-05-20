@@ -308,27 +308,27 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def get_latest_record_id(vm, vehicle_id):
     """
-    Fragt die Benachrichtigungsliste ab und versucht die recordId 
-    des allerneuesten Steuerbefehls zu ermitteln.
+    Fragt die Benachrichtigungsliste offiziell ueber die interne 
+    api-Instanz des VehicleManagers ab, um die recordId zu ermitteln.
     """
     try:
-        # Wir simulieren den API-Aufruf, den check_action_status intern macht
-        url = vm.SPA_API_URL + "notifications/" + vehicle_id + "/records"
+        # Wir holen das echte Vehicle-Objekt aus dem Manager
         vehicle_obj = vm.get_vehicle(vehicle_id)
         
-        # Authentifizierte Header ueber den internen API-Client holen
-        headers = vm._get_authenticated_headers(
-            vm.token, vehicle_obj.ccu_ccs2_protocol_support
+        # Zugriff auf die Url und die Header ueber das gekapselte api-Objekt
+        url = vm.api.SPA_API_URL + "notifications/" + vehicle_id + "/records"
+        headers = vm.api._get_authenticated_headers(
+            vm.api.token, vehicle_obj.ccu_ccs2_protocol_support
         )
         
         import requests
         response = requests.get(url, headers=headers).json()
         
-        # Wenn Eintraege vorhanden sind, nehmen wir den obersten (neuesten)
+        # Wenn Eintraege vorhanden sind, nehmen wir den neuesten (ersten) Eintrag
         if response and "resMsg" in response and len(response["resMsg"]) > 0:
-            latest_action = response["resMsg"][0] # Der erste Eintrag ist der jüngste
+            latest_action = response["resMsg"][0] # Index 0 ist das neueste Element
             r_id = latest_action.get("recordId")
-            logger.info(f"Echte recordId im Backend gefunden: {r_id} (Typ: {latest_action.get('serviceName')})")
+            logger.info(f"Echte recordId aus Backend geladen: {r_id} (Dienst: {latest_action.get('serviceName')})")
             return r_id
     except Exception as e:
         logger.warning(f"Konnte recordId nicht aus Notification-Liste extrahieren: {e}")
@@ -337,24 +337,22 @@ def get_latest_record_id(vm, vehicle_id):
 
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Ermittelt die echte recordId und fragt den Status 
-    erzwungen ueber check_action_status ab.
+    Wartet kurz, zieht die echte recordId und pollt check_action_status.
     """
-    # 1. Versuche die echte recordId aus der Benachrichtigungsliste zu holen
-    # Wir warten 2 Sekunden, damit der Server Zeit hat, den Eintrag zu generieren
+    # Dem Server 2 Sekunden Zeit geben, den Notification-Eintrag zu schreiben
     time.sleep(2) 
     real_action_id = get_latest_record_id(vm, vehicle_id)
     
-    # Fallback, falls das Auslesen fehlschlaegt: Nutze die uebergebene msgId
+    # Fallback auf die msgId, falls die Notification-Liste leer war
     if not real_action_id:
         real_action_id = getattr(action_response, 'action_id', action_response)
-        logger.warning(f"Nutze msgId als Fallback-ID: {real_action_id}")
+        logger.warning(f"Nutze msgId als Fallback: {real_action_id}")
 
     if not real_action_id:
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    max_retries = 15  # 15 Versuche * 5 Sekunden = 75 Sekunden maximales Polling
+    max_retries = 15  
     logger.info(f"Starte check_action_status Polling fuer ID: {real_action_id}")
     
     for attempt in range(max_retries):
