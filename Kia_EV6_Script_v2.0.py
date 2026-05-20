@@ -200,7 +200,7 @@ def on_message(client, userdata, msg):
                 client.publish(f"{mqtt_topic}response", str(action_response), retain=True)
                 
                 if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
-                    update_and_publish("force")
+                    update_and_publish("auto")
                 else:
                     final_status = "fail"
             except Exception as e:
@@ -211,7 +211,7 @@ def on_message(client, userdata, msg):
         elif topic == "stopClimate":
             res = vm.stop_climate(vehicle_id)
             if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
-                update_and_publish("force")
+                update_and_publish("auto")
             else:
                 final_status = "fail"
                 
@@ -219,7 +219,7 @@ def on_message(client, userdata, msg):
         elif topic == "startCharge" or topic == "stopCharge":
             res = vm.start_charge(vehicle_id) if "start" in topic else vm.stop_charge(vehicle_id)
             if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
-                update_and_publish("force")
+                update_and_publish("auto")
             else:
                 final_status = "fail"
                 
@@ -227,7 +227,7 @@ def on_message(client, userdata, msg):
         elif topic == "charge_port":
             res = vm.open_charge_port(vehicle_id) if payload.lower() == "open" else vm.close_charge_port(vehicle_id)
             if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
-                update_and_publish("force")
+                update_and_publish("auto")
             else:
                 final_status = "fail"
                 
@@ -237,7 +237,7 @@ def on_message(client, userdata, msg):
                 jsonmsg = json.loads(payload)
                 res = vm.set_charge_limits(vehicle_id, jsonmsg['ac'], jsonmsg['dc'])
                 if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
-                    update_and_publish("force")
+                    update_and_publish("auto")
                 else:
                     final_status = "fail"
             except Exception as e:
