@@ -195,14 +195,10 @@ def on_message(client, userdata, msg):
         elif topic == "startClimate":
             try:
                 climateClass = ClimateRequestOptions(**json.loads(msg.payload))
-                
-                # Sende Befehl ab -> liefert den msgId-String zurueck
                 action_response = vm.start_climate(vehicle_id, climateClass)
                 
-                # Den String zur Info an MQTT senden
                 client.publish(f"{mqtt_topic}response", str(action_response), retain=True)
                 
-                # Aufruf der Ueberwachung mit dem String als ID
                 if wait_for_action(vm, vehicle_id, action_response, mqtt_topic, client):
                     update_and_publish("force")
                 else:
@@ -310,31 +306,65 @@ client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
+def get_latest_record_id(vm, vehicle_id):
+    """
+    Fragt die Benachrichtigungsliste ab und versucht die recordId 
+    des allerneuesten Steuerbefehls zu ermitteln.
+    """
+    try:
+        # Wir simulieren den API-Aufruf, den check_action_status intern macht
+        url = vm.SPA_API_URL + "notifications/" + vehicle_id + "/records"
+        vehicle_obj = vm.get_vehicle(vehicle_id)
+        
+        # Authentifizierte Header ueber den internen API-Client holen
+        headers = vm._get_authenticated_headers(
+            vm.token, vehicle_obj.ccu_ccs2_protocol_support
+        )
+        
+        import requests
+        response = requests.get(url, headers=headers).json()
+        
+        # Wenn Eintraege vorhanden sind, nehmen wir den obersten (neuesten)
+        if response and "resMsg" in response and len(response["resMsg"]) > 0:
+            latest_action = response["resMsg"][0] # Der erste Eintrag ist der jüngste
+            r_id = latest_action.get("recordId")
+            logger.info(f"Echte recordId im Backend gefunden: {r_id} (Typ: {latest_action.get('serviceName')})")
+            return r_id
+    except Exception as e:
+        logger.warning(f"Konnte recordId nicht aus Notification-Liste extrahieren: {e}")
+    
+    return None
+
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Fragt den Status der Aktion ERZWUNGEN ueber check_action_status ab.
-    Ignoriert die ersten UNKNOWN-Meldungen, bis der Server die ID registriert hat.
+    Ermittelt die echte recordId und fragt den Status 
+    erzwungen ueber check_action_status ab.
     """
-    # Da start_climate einen String liefert, fangen wir das hier sicher ab
-    action_id = action_response
+    # 1. Versuche die echte recordId aus der Benachrichtigungsliste zu holen
+    # Wir warten 2 Sekunden, damit der Server Zeit hat, den Eintrag zu generieren
+    time.sleep(2) 
+    real_action_id = get_latest_record_id(vm, vehicle_id)
     
-    if not action_id:
+    # Fallback, falls das Auslesen fehlschlaegt: Nutze die uebergebene msgId
+    if not real_action_id:
+        real_action_id = getattr(action_response, 'action_id', action_response)
+        logger.warning(f"Nutze msgId als Fallback-ID: {real_action_id}")
+
+    if not real_action_id:
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
     max_retries = 15  # 15 Versuche * 5 Sekunden = 75 Sekunden maximales Polling
-    logger.info(f"Erzwinge Statusabfrage ueber check_action_status fuer ID: {action_id}")
+    logger.info(f"Starte check_action_status Polling fuer ID: {real_action_id}")
     
     for attempt in range(max_retries):
         try:
-            # Wir nutzen synchronous=False, damit wir das Verhalten selbst steuern koennen
             status_obj = vm.check_action_status(
                 vehicle_id=vehicle_id, 
-                action_id=action_id, 
+                action_id=real_action_id, 
                 synchronous=False
             )
             
-            # Umwandlung des Enum-Objekts in Text
             status_str = str(status_obj).lower()
             if "." in status_str:
                 status_str = status_str.split(".")[-1]
@@ -342,26 +372,19 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
             logger.info(f"API-Abfrage {attempt+1}/{max_retries}: {status_obj} (Erkannt als: {status_str})")
             client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
             
-            # Wenn der Server die ID verarbeitet hat und Erfolg meldet
             if "success" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
+                client.publish(f"{topic_base}last_action_result", f"Success (ID: {real_action_id})", retain=False)
                 return True
-                
-            # Wenn der Server einen echten Fehlschlag meldet
             elif "fail" in status_str or "denied" in status_str:
-                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
+                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {real_action_id})", retain=False)
                 return False
                 
-            # Wenn status_str "unknown" oder "pending" ist, brechen wir NICHT ab.
-            # Wir loggen es und warten, bis der Trägere Kia-Server die ID einordnet.
-            
         except Exception as e:
             logging.warning(f"Fehler bei check_action_status Aufruf: {e}")
             
         time.sleep(5)
         
-    # Wenn nach 75 Sekunden immer noch UNKNOWN/PENDING steht, bricht die Schleife geordnet ab
-    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
+    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {real_action_id}", retain=False)
     return False
 
 def on_disconnect(client, userdata, rc):
