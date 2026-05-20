@@ -309,7 +309,7 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
     Kombiniert check_action_status mit einer intelligenten Live-Zustandspruefung.
-    Uebergibt den Status an MQTT und bricht bei realem Erfolg am EV6 vorzeitig ab.
+    Nutzt die nativen Update-Befehle deiner API-Version.
     """
     action_id = getattr(action_response, 'action_id', action_response)
     
@@ -322,14 +322,14 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     
     for attempt in range(max_retries):
         try:
-            # 1. Device-ID Refresh fuer die EU-Region (haelt die API-Sitzung sauber)
+            # 1. Device-ID Refresh fuer die EU-Region
             new_device_id = vm.api._get_device_id(vm.api._get_stamp())
             if hasattr(vm.api, '_token') and vm.api._token is not None:
                 vm.api._token.device_id = new_device_id
             elif hasattr(vm.api, 'token') and vm.api.token is not None:
                 vm.api.token.device_id = new_device_id
             
-            # 2. Regulärer check_action_status Aufruf
+            # 2. Regulaerer check_action_status Aufruf
             status_obj = vm.check_action_status(
                 vehicle_id=vehicle_id, 
                 action_id=action_id, 
@@ -352,7 +352,8 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
                 
             # 3. DIE HYBRID-WEICHE: Ab dem 5. Versuch prüfen wir parallel das Auto
             if attempt >= 4 and "unknown" in status_str:
-                vm.update_vehicle_with_id(vehicle_id, force_refresh=False)
+                # KORREKTUR: Nutzt die Cache-Aktualisierung deiner API-Version
+                vm.check_and_force_update_vehicles(3598)
                 vehicle = vm.get_vehicle(vehicle_id)
                 
                 if vehicle.air_control_is_on:
@@ -368,6 +369,7 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     # Finaler Rettungsversuch nach 60 Sekunden via Force-Refresh direkt vom Auto
     logger.warning("Kein eindeutiger API-Status nach 60s. Erzwinge Live-Refresh vom EV6...")
     try:
+        # KORREKTUR: Nutzt deinen nativen Befehl fuer das Aufwecken des Autos
         vm.force_refresh_vehicle_state(vehicle_id)
         if vm.get_vehicle(vehicle_id).air_control_is_on:
             logger.info("Klimaanlage laeuft nach Force-Refresh! Setze auf Success.")
@@ -378,7 +380,6 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
 
     client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
-
 
 def on_disconnect(client, userdata, rc):
     logger.warning(f"MQTT Verbindung verloren (Code {rc}). Automatisch Reconnect...")
