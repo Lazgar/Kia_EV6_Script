@@ -13,5 +13,5 @@
     "apilanguage": "de",
     "apivehicleid": "xxx",
     "drivinghistorydays": 20,
-    "historydevice": "xxx"
+    "mqtthistorytopic": "xxx"
 }
