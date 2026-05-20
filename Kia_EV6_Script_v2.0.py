@@ -195,9 +195,7 @@ def on_message(client, userdata, msg):
         elif topic == "startClimate":
             try:
                 climateClass = ClimateRequestOptions(**json.loads(msg.payload))
-                action_response = vm.start_climate(vehicle_id, climateClass)
-                
-                client.publish(f"{mqtt_topic}response", str(action_response), retain=True)
+                res = vm.start_climate(vehicle_id, climateClass)
                 
                 if wait_for_action(vm, vehicle_id, res, mqtt_topic, client, cmd=topic, payload=payload):
                     update_and_publish("auto")
