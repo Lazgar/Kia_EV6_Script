@@ -321,14 +321,12 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
 
     logger.info(f"Starte synchrone API-Ueberwachung fuer Aktion {action_id} (60s Timeout)...")
     
-    try:
-        # Wir holen das echte Vehicle-Objekt, da die Funktion das benoetigt
+try:
+        # Wir holen das echte Vehicle-Objekt
         vehicle_obj = vm.get_vehicle(vehicle_id)
         
-        # Aufruf mit synchronous=True und 60 Sekunden Timeout.
-        # Die API pollt nun intern alle 5 Sekunden selbststaendig!
+        # Korrigierter Aufruf ohne das 'token' Argument für den VehicleManager
         status_obj = vm.check_action_status(
-            token=vm.token, 
             vehicle=vehicle_obj, 
             action_id=action_id, 
             synchronous=True, 
@@ -345,13 +343,11 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
             return True
         elif "timeout" in status_str:
             logger.warning("API-Schnittstelle lief in einen Timeout. Pruefe Fahrzeug-Live-Status...")
-            # Fallback: Hat das Auto es trotzdem gemerkt?
             vm.update_vehicle_with_id(vehicle_id, force_refresh=False)
             if vm.get_vehicle(vehicle_id).air_control_is_on:
                 logger.info("Auto meldet: Klima laeuft! Werte Timeout als Erfolg.")
                 return True
         
-        # Fuer alle anderen Zustaende (FAILED, UNKNOWN)
         client.publish(f"{topic_base}last_action_result", f"Failed or Unknown ({status_obj})", retain=False)
         return False
             
