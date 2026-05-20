@@ -316,21 +316,32 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    max_retries = 12  # 12 Versuche * 5 Sekunden = 60 Sekunden maximales Timeout
+    max_retries = 15  # Erhöht auf 15 Versuche * 5 Sek = 75 Sek maximal (Klima braucht oft etwas länger)
     
     for attempt in range(max_retries):
         try:
-            status = vm.check_action_status(vehicle_id, action_id)
-            logger.info(f"Aktions-Status (Versuch {attempt+1}/{max_retries}): {status}")
+            status_obj = vm.check_action_status(vehicle_id, action_id)
             
-            client.publish(f"{topic_base}status/last_action_status", str(status), retain=False)
+            # Status in reinen String umwandeln und bereinigen (z.B. "order_status.success" -> "success")
+            status_str = str(status_obj).lower()
+            if "." in status_str:
+                status_str = status_str.split(".")[-1]
+                
+            logger.info(f"Aktions-Status (Versuch {attempt+1}/{max_retries}): {status_obj} -> Erkannt als: {status_str}")
             
-            if status == "Success":
+            # Den rohen Status für dein Dashboard publizieren
+            client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
+            
+            # Prüfung auf Erfolg oder Fehlschlag
+            if "success" in status_str:
+                client.publish(f"{mqtt_topic}command", "idle", retain=True) # Explizit hier auf idle setzen
                 client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
                 return True
-            elif status == "Failed":
+            elif "fail" in status_str or "denied" in status_str:
                 client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
+                
+            # Bei "unknown", "pending" oder "processing" schläft die Schleife und versucht es erneut
                 
         except Exception as e:
             logging.warning(f"Fehler beim Abfragen des Action-Status: {e}")
