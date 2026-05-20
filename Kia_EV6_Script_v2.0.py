@@ -308,8 +308,8 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Fragt den Status ueber check_action_status ab.
-    Erneuert in jedem Durchlauf die device_id via _token, um den Kia-EU-Bug (Issue #1143) zu umgehen.
+    Kombiniert check_action_status mit einer intelligenten Live-Zustandspruefung.
+    Uebergibt den Status an MQTT und bricht bei realem Erfolg am EV6 vorzeitig ab.
     """
     action_id = getattr(action_response, 'action_id', action_response)
     
@@ -317,22 +317,19 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    max_retries = 14  # 14 Versuche * 5 Sekunden = 70 Sekunden maximales Polling
-    logger.info(f"Starte check_action_status Polling fuer ID: {action_id} (mit Device-ID Refresh)")
+    max_retries = 12  # 12 Versuche * 5 Sekunden = 60 Sekunden maximales Polling
+    logger.info(f"Starte check_action_status Polling fuer ID: {action_id}")
     
     for attempt in range(max_retries):
         try:
-            # --- DER KORRIGIERTE FIX AUS ISSUE #1143 ---
-            # Wir generieren die neue Device-ID ueber die internen API-Funktionen
+            # 1. Device-ID Refresh fuer die EU-Region (haelt die API-Sitzung sauber)
             new_device_id = vm.api._get_device_id(vm.api._get_stamp())
-            
-            # Zuweisung auf das korrekte, interne EU-Token-Objekt mit Unterstrich
             if hasattr(vm.api, '_token') and vm.api._token is not None:
                 vm.api._token.device_id = new_device_id
             elif hasattr(vm.api, 'token') and vm.api.token is not None:
                 vm.api.token.device_id = new_device_id
             
-            # Jetzt die eigentliche Statusabfrage absenden
+            # 2. Regulärer check_action_status Aufruf
             status_obj = vm.check_action_status(
                 vehicle_id=vehicle_id, 
                 action_id=action_id, 
@@ -353,13 +350,35 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
                 client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
                 
+            # 3. DIE HYBRID-WEICHE: Ab dem 5. Versuch prüfen wir parallel das Auto
+            if attempt >= 4 and "unknown" in status_str:
+                vm.update_vehicle_with_id(vehicle_id, force_refresh=False)
+                vehicle = vm.get_vehicle(vehicle_id)
+                
+                if vehicle.air_control_is_on:
+                    logger.info("Hybrid-Erkennung erfolgreich! EV6 meldet: Klimaanlage laeuft bereits.")
+                    client.publish(f"{topic_base}last_action_result", f"Success via Live-Check (ID: {action_id})", retain=False)
+                    return True
+            
         except Exception as e:
-            logging.warning(f"Fehler bei check_action_status oder Device-ID Refresh: {e}")
+            logging.warning(f"Fehler bei check_action_status oder Statusabgleich: {e}")
             
         time.sleep(5)
         
+    # Finaler Rettungsversuch nach 60 Sekunden via Force-Refresh direkt vom Auto
+    logger.warning("Kein eindeutiger API-Status nach 60s. Erzwinge Live-Refresh vom EV6...")
+    try:
+        vm.force_refresh_vehicle_state(vehicle_id)
+        if vm.get_vehicle(vehicle_id).air_control_is_on:
+            logger.info("Klimaanlage laeuft nach Force-Refresh! Setze auf Success.")
+            client.publish(f"{topic_base}last_action_result", f"Success via Force-Check (ID: {action_id})", retain=False)
+            return True
+    except Exception as e:
+        logger.error(f"Finaler Force-Refresh fehlgeschlagen: {e}")
+
     client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
+
 
 def on_disconnect(client, userdata, rc):
     logger.warning(f"MQTT Verbindung verloren (Code {rc}). Automatisch Reconnect...")
