@@ -33,6 +33,7 @@ with open(config_path) as f:
     config = json.load(f)
 
 mqtt_topic = config['mqttbasetopic']
+stats_topic = config['mqttstatstopic']
 vehicle_id = config['apivehicleid']
 driving_history_days = config['drivinghistorydays']
 
@@ -133,7 +134,6 @@ def update_and_publish(force_mode="auto"):
         logger.error(f"Update Fehler: {str(e)}")
 
 def fetch_and_publish_stats():
-    stats_topic = "Garage/Kia/EV6/history" 
     try:
         vm.check_and_refresh_token()
         vm.update_all_vehicles_with_cached_state()
@@ -158,7 +158,7 @@ def fetch_and_publish_stats():
         
         # Senden des flachen Objekts
         payload = json.dumps(daily_data, ensure_ascii=True).encode('utf-8')
-        client.publish(f"{mqtt_topic}drivinghistory", payload, retain=True)
+        client.publish({stats_topic}, payload, retain=True)
         
     except Exception as e:
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
