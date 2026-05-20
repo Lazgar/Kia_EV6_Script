@@ -33,7 +33,7 @@ with open(config_path) as f:
     config = json.load(f)
 
 mqtt_topic = config['mqttbasetopic']
-stats_topic = config['mqttstatstopic']
+stats_topic = config['mqtthistorytopic']
 vehicle_id = config['apivehicleid']
 driving_history_days = config['drivinghistorydays']
 
