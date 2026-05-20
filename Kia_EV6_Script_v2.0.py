@@ -309,7 +309,7 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
     Fragt den Status ueber check_action_status ab.
-    Erneuert in jedem Durchlauf die device_id, um den Kia-EU-Bug (Issue #1143) zu umgehen.
+    Erneuert in jedem Durchlauf die device_id via _token, um den Kia-EU-Bug (Issue #1143) zu umgehen.
     """
     action_id = getattr(action_response, 'action_id', action_response)
     
@@ -322,11 +322,15 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     
     for attempt in range(max_retries):
         try:
-            # --- DER FIX AUS ISSUE #1143 ---
-            # Wir zwingen die zugrundeliegende API, vor der Abfrage eine frische Device-ID zu generieren.
-            # Dadurch wird verhindert, dass der Kia-Server uns mit einer leeren Liste (resMsg: []) abweist.
+            # --- DER KORRIGIERTE FIX AUS ISSUE #1143 ---
+            # Wir generieren die neue Device-ID ueber die internen API-Funktionen
             new_device_id = vm.api._get_device_id(vm.api._get_stamp())
-            vm.api.token.device_id = new_device_id
+            
+            # Zuweisung auf das korrekte, interne EU-Token-Objekt mit Unterstrich
+            if hasattr(vm.api, '_token') and vm.api._token is not None:
+                vm.api._token.device_id = new_device_id
+            elif hasattr(vm.api, 'token') and vm.api.token is not None:
+                vm.api.token.device_id = new_device_id
             
             # Jetzt die eigentliche Statusabfrage absenden
             status_obj = vm.check_action_status(
