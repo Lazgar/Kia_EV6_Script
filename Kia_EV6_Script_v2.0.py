@@ -308,10 +308,9 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Fragt den Status der Aktion strikt ueber check_action_status ab.
-    Ignoriert anfaengliche UNKNOWN-Zustaende, bis der Kia-Server die ID registriert.
+    Fragt den Status ueber check_action_status ab.
+    Erneuert in jedem Durchlauf die device_id, um den Kia-EU-Bug (Issue #1143) zu umgehen.
     """
-    # Nimmt den nackten msgId-String entgegen
     action_id = getattr(action_response, 'action_id', action_response)
     
     if not action_id:
@@ -319,18 +318,23 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
         return False
 
     max_retries = 14  # 14 Versuche * 5 Sekunden = 70 Sekunden maximales Polling
-    logger.info(f"Starte check_action_status Polling fuer ID: {action_id}")
+    logger.info(f"Starte check_action_status Polling fuer ID: {action_id} (mit Device-ID Refresh)")
     
     for attempt in range(max_retries):
         try:
-            # Wir nutzen synchronous=False, um die Schleifen-Kontrolle im Script zu behalten
+            # --- DER FIX AUS ISSUE #1143 ---
+            # Wir zwingen die zugrundeliegende API, vor der Abfrage eine frische Device-ID zu generieren.
+            # Dadurch wird verhindert, dass der Kia-Server uns mit einer leeren Liste (resMsg: []) abweist.
+            new_device_id = vm.api._get_device_id(vm.api._get_stamp())
+            vm.api.token.device_id = new_device_id
+            
+            # Jetzt die eigentliche Statusabfrage absenden
             status_obj = vm.check_action_status(
                 vehicle_id=vehicle_id, 
                 action_id=action_id, 
                 synchronous=False
             )
             
-            # Umwandlung des Enums in reinen Text (z.B. "order_status.success" -> "success")
             status_str = str(status_obj).lower()
             if "." in status_str:
                 status_str = status_str.split(".")[-1]
@@ -338,25 +342,18 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
             logger.info(f"API-Abfrage {attempt+1}/{max_retries}: {status_obj} (Erkannt als: {status_str})")
             client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
             
-            # Erfolg: Der Server hat die ID zugeordnet und meldet Vollzug
             if "success" in status_str:
                 client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
                 return True
-                
-            # Fehler: Der Befehl wurde vom Server oder Auto explizit abgelehnt
             elif "fail" in status_str or "denied" in status_str:
                 client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
                 return False
                 
-            # Wenn der Status "unknown", "pending" oder "processing" ist,
-            # brechen wir NICHT ab, sondern geben dem Kia-Server Zeit für die Zuweisung.
-            
         except Exception as e:
-            logging.warning(f"Fehler bei check_action_status Aufruf: {e}")
+            logging.warning(f"Fehler bei check_action_status oder Device-ID Refresh: {e}")
             
         time.sleep(5)
         
-    # Timeout nach 70 Sekunden erreicht
     client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
     return False
 
