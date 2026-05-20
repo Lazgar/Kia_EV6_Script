@@ -195,13 +195,15 @@ def on_message(client, userdata, msg):
         elif topic == "startClimate":
             try:
                 climateClass = ClimateRequestOptions(**json.loads(msg.payload))
+                
+                # Sende Befehl ab -> liefert den msgId-String zurueck
                 action_response = vm.start_climate(vehicle_id, climateClass)
                 
-                # Antwort-Objekt roh an MQTT senden (wie in deinem Original)
-                client.publish(f"{mqtt_topic}response", process_api_response(action_response), retain=True)
+                # Den String zur Info an MQTT senden
+                client.publish(f"{mqtt_topic}response", str(action_response), retain=True)
                 
-                action_id = getattr(action_response, 'action_id', action_response)
-                if wait_for_action(vm, vehicle_id, action_id, mqtt_topic, client):
+                # Aufruf der Ueberwachung mit dem String als ID
+                if wait_for_action(vm, vehicle_id, action_response, mqtt_topic, client):
                     update_and_publish("force")
                 else:
                     final_status = "fail"
@@ -310,49 +312,57 @@ client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 # Hilfsfunktion zum Abwarten des API-Status (In on_message oder als globale Funktion definieren)
 def wait_for_action(vm, vehicle_id, action_response, topic_base, client):
     """
-    Nutzt die synchrone Ueberwachung der API.
-    Wartet blockierungsarm im Hintergrund-Thread, bis Kia Vollzug meldet.
+    Fragt den Status der Aktion ERZWUNGEN ueber check_action_status ab.
+    Ignoriert die ersten UNKNOWN-Meldungen, bis der Server die ID registriert hat.
     """
-    action_id = getattr(action_response, 'action_id', action_response)
+    # Da start_climate einen String liefert, fangen wir das hier sicher ab
+    action_id = action_response
     
     if not action_id:
         client.publish(f"{topic_base}last_action_result", "No Action ID found", retain=False)
         return False
 
-    logger.info(f"Starte synchrone API-Ueberwachung fuer Aktion {action_id} (60s Timeout)...")
+    max_retries = 15  # 15 Versuche * 5 Sekunden = 75 Sekunden maximales Polling
+    logger.info(f"Erzwinge Statusabfrage ueber check_action_status fuer ID: {action_id}")
     
-    try:
-        # Korrigierter Aufruf exakt nach den Vorgaben deines VehicleManagers:
-        # Er moechte 'vehicle_id' anstelle des Objekts haben.
-        status_obj = vm.check_action_status(
-            vehicle_id=vehicle_id, 
-            action_id=action_id, 
-            synchronous=True, 
-            timeout=60
-        )
-        
-        status_str = str(status_obj).lower()
-        logger.info(f"Synchrone API-Antwort erhalten: {status_obj}")
-        client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
-        
-        # Auswertung des finalen Status, den die API zurueckliefert
-        if "success" in status_str:
-            client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
-            return True
-        elif "timeout" in status_str:
-            logger.warning("API-Schnittstelle lief in einen Timeout. Pruefe Fahrzeug-Live-Status...")
-            vm.update_vehicle_with_id(vehicle_id, force_refresh=False)
-            if vm.get_vehicle(vehicle_id).air_control_is_on:
-                logger.info("Auto meldet: Klima laeuft! Werte Timeout als Erfolg.")
-                return True
-        
-        client.publish(f"{topic_base}last_action_result", f"Failed or Unknown ({status_obj})", retain=False)
-        return False
+    for attempt in range(max_retries):
+        try:
+            # Wir nutzen synchronous=False, damit wir das Verhalten selbst steuern koennen
+            status_obj = vm.check_action_status(
+                vehicle_id=vehicle_id, 
+                action_id=action_id, 
+                synchronous=False
+            )
             
-    except Exception as e:
-        logger.error(f"Fehler bei der synchronen Statusueberwachung: {e}")
-        client.publish(f"{topic_base}last_action_result", f"Error: {str(e)}", retain=False)
-        return False
+            # Umwandlung des Enum-Objekts in Text
+            status_str = str(status_obj).lower()
+            if "." in status_str:
+                status_str = status_str.split(".")[-1]
+                
+            logger.info(f"API-Abfrage {attempt+1}/{max_retries}: {status_obj} (Erkannt als: {status_str})")
+            client.publish(f"{topic_base}status/last_action_status", str(status_obj), retain=False)
+            
+            # Wenn der Server die ID verarbeitet hat und Erfolg meldet
+            if "success" in status_str:
+                client.publish(f"{topic_base}last_action_result", f"Success (ID: {action_id})", retain=False)
+                return True
+                
+            # Wenn der Server einen echten Fehlschlag meldet
+            elif "fail" in status_str or "denied" in status_str:
+                client.publish(f"{topic_base}last_action_result", f"Failed (ID: {action_id})", retain=False)
+                return False
+                
+            # Wenn status_str "unknown" oder "pending" ist, brechen wir NICHT ab.
+            # Wir loggen es und warten, bis der Trägere Kia-Server die ID einordnet.
+            
+        except Exception as e:
+            logging.warning(f"Fehler bei check_action_status Aufruf: {e}")
+            
+        time.sleep(5)
+        
+    # Wenn nach 75 Sekunden immer noch UNKNOWN/PENDING steht, bricht die Schleife geordnet ab
+    client.publish(f"{topic_base}last_action_result", f"Timeout waiting for action {action_id}", retain=False)
+    return False
 
 def on_disconnect(client, userdata, rc):
     logger.warning(f"MQTT Verbindung verloren (Code {rc}). Automatisch Reconnect...")
