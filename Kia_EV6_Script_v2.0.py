@@ -326,7 +326,7 @@ def wait_for_action(vm, vehicle_id, action_response, topic_base, client, cmd="",
             if "fail" in status_str or "denied" in status_str: return False
                 
             # UNIVERSELLE HYBRID-WEICHE: Ab Versuch 5 Zustand pruefen
-            if attempt >= 4:
+            if attempt >= 3:
                 vm.check_and_force_update_vehicles(3598)
                 vehicle = vm.get_vehicle(vehicle_id)
                 
