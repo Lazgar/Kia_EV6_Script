@@ -299,7 +299,7 @@ vm = VehicleManager(region=config['apiregion'],
                     pin=config['apipin'], 
                     language=config['apilanguage']
                    )
-
+vm.login()
 client = mqtt.Client(config['mqttclientid'])
 client.username_pw_set(config['mqttbrokeruser'], config['mqttbrokerpasswort'])
 
