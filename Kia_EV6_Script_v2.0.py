@@ -295,7 +295,7 @@ def on_message(client, userdata, msg):
 vm = VehicleManager(region=config['apiregion'], 
                     brand=config['apibrand'], 
                     username=config['apiusername'],
-                    password=config['apirefreshtoken'], 
+                    password=config['apipassword'], 
                     pin=config['apipin'], 
                     language=config['apilanguage']
                    )
