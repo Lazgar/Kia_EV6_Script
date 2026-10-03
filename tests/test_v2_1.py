@@ -87,6 +87,9 @@ class FakeVehicle:
     is_locked = True
     air_control_is_on = False
 
+    def __init__(self):             # wie beim echten Vehicle (Dataclass): Felder als Instanzattribute
+        self.id, self.model, self.VIN, self.total_power_consumed = "VID", "EV6", "X", 1234
+
     def __getattr__(self, name):    # unbekannte Felder liefert das Auto nicht -> None
         if name.startswith("__"):
             raise AttributeError(name)
@@ -183,6 +186,23 @@ class V21Tests(unittest.TestCase):
         done = [json.loads(p) for p in kia.client.topic("last_action") if json.loads(p)["state"] == "success"]
         self.assertEqual([d["command"] for d in done], ["door", "startCharge"])
         self.assertEqual(kia.client.topic("command")[-1], "idle")
+
+    def test_getdump_schreibt_nur_auf_befehl(self):
+        d = tempfile.mkdtemp()
+        kia.dump_path = os.path.join(d, "vehicleDump.txt")
+        kia.vm = FakeVM([ORDER_STATUS.SUCCESS])
+        kia.on_message(None, None, Msg("getAll", ""))            # normale Abfrage: keine Datei
+        kia.cmd_queue.join(); time.sleep(0.1)
+        self.assertFalse(os.path.exists(kia.dump_path))
+        kia.on_message(None, None, Msg("getDump", ""))           # nur dieser Befehl schreibt
+        kia.cmd_queue.join(); time.sleep(0.1)
+        self.assertTrue(os.path.exists(kia.dump_path))
+        self.assertEqual(oct(os.stat(kia.dump_path).st_mode & 0o777), "0o600")
+        dump = json.load(open(kia.dump_path))
+        self.assertEqual(dump["fields"]["VIN"], "X")
+        self.assertIn("vehicleStatus", dump["raw_api_data"])
+        self.assertEqual(json.loads(kia.client.topic("last_action")[-1])["state"], "success")
+        self.assertFalse(os.path.exists(kia.dump_path + ".tmp"))
 
     def test_neue_werte_und_null_fuer_fehlendes(self):
         kia.vm = FakeVM([ORDER_STATUS.SUCCESS])
