@@ -6,7 +6,7 @@
     "mqttbrokeruser": "xxx",
     "mqttbrokerpasswort": "xxx",
     "apiusername": "xxx",
-    "apiapirefreshtoken": "xxx",
+    "apipassword": "xxx",
     "apipin": "xxxx",
     "apibrand": 1,
     "apiregion": 1,
