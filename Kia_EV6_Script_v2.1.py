@@ -489,13 +489,26 @@ def login_with_retry(max_attempts=8):
             delay = min(delay * 2, 300)
 
 
+def get_api_password():
+    """Kia-Passwort aus settings.json ('apipassword'). Fruehere Versionen brauchten einen Refresh-Token ('apirefreshtoken');
+    das wird nur noch als Uebergang akzeptiert (mit Warnung)."""
+    if config.get('apipassword'):
+        return config['apipassword']
+    for legacy in ('apirefreshtoken', 'apiapirefreshtoken'):
+        if config.get(legacy):
+            logger.warning(f"settings.json: '{legacy}' ist veraltet - bitte 'apipassword' mit dem Kia-Passwort eintragen.")
+            return config[legacy]
+    logger.error("settings.json: 'apipassword' fehlt.")
+    sys.exit(-3)
+
+
 def main():
     global vm, client, last_stats_date
 
     vm = VehicleManager(region=config['apiregion'],
                         brand=config['apibrand'],
                         username=config['apiusername'],
-                        password=config.get('apirefreshtoken') or config.get('apiapirefreshtoken') or config['apipassword'],
+                        password=get_api_password(),
                         pin=config['apipin'],
                         language=config['apilanguage']
                         )

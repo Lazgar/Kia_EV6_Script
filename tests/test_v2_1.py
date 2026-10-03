@@ -53,7 +53,7 @@ def install_stubs():
 EXC = install_stubs()
 SETTINGS = {"mqttclientid": "t", "mqttbasetopic": "kia/", "mqtthistorytopic": "kia/hist", "mqttbrokerip": "127.0.0.1",
             "mqttbrokerport": 1883, "mqttbrokeruser": "u", "mqttbrokerpasswort": "p", "apiusername": "u",
-            "apirefreshtoken": "p", "apipin": "0000", "apibrand": 1, "apiregion": 1, "apilanguage": "de",
+            "apipassword": "p", "apipin": "0000", "apibrand": 1, "apiregion": 1, "apilanguage": "de",
             "apivehicleid": "VID", "drivinghistorydays": 3}
 _tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
 json.dump(SETTINGS, _tmp)
@@ -203,6 +203,21 @@ class V21Tests(unittest.TestCase):
         self.assertIn("vehicleStatus", dump["raw_api_data"])
         self.assertEqual(json.loads(kia.client.topic("last_action")[-1])["state"], "success")
         self.assertFalse(os.path.exists(kia.dump_path + ".tmp"))
+
+    def test_passwort_schluessel(self):
+        saved = dict(kia.config)
+        try:
+            kia.config.pop("apirefreshtoken", None)
+            kia.config["apipassword"] = "pw"
+            kia.config["apirefreshtoken"] = "alt"
+            self.assertEqual(kia.get_api_password(), "pw")            # apipassword hat Vorrang
+            del kia.config["apipassword"]
+            self.assertEqual(kia.get_api_password(), "alt")           # Uebergang: alter Schluessel funktioniert noch
+            del kia.config["apirefreshtoken"]
+            with self.assertRaises(SystemExit):
+                kia.get_api_password()
+        finally:
+            kia.config.clear(); kia.config.update(saved)
 
     def test_neue_werte_und_null_fuer_fehlendes(self):
         kia.vm = FakeVM([ORDER_STATUS.SUCCESS])
