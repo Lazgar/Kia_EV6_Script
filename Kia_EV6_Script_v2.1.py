@@ -12,6 +12,10 @@ Aenderungen gegenueber v2.0:
 - Library-Logger auf WARNING (der INFO-Dump enthielt VIN und Standort im Journal).
 - Login mit Wiederholversuchen, MQTT-Reconnect nur noch durch paho (kein doppelter Reconnect, kein loop() neben loop_start()).
 - paho-mqtt 2.x kompatibel.
+- Neuer MQTT-Befehl <basetopic>set/getDump: schreibt die komplette Fahrzeugantwort (alle Felder + Rohdaten der API)
+  einmalig in eine Datei (Standard: vehicleDump.txt neben dem Skript, oder "dumpfile" in settings.json).
+  Es wird nur auf diesen Befehl geschrieben, nie bei normalen Abfragen (schont die SSD). Payload "force" holt vorher frische Daten
+  vom Auto (weckt es auf, belastet die 12-V-Batterie), sonst werden die zwischengespeicherten Daten verwendet.
 """
 import json
 import logging
@@ -55,6 +59,8 @@ mqtt_topic = config['mqttbasetopic']
 stats_topic = config['mqtthistorytopic']
 vehicle_id = config['apivehicleid']
 driving_history_days = config['drivinghistorydays']
+
+dump_path = config.get('dumpfile') or os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vehicleDump.txt')
 
 ACTION_TIMEOUT = 90          # Sekunden, so lange wird auf die Rueckmeldung des Autos gewartet
 ACTION_POLL = 3              # Sekunden zwischen den Statusabfragen
@@ -253,6 +259,22 @@ def fetch_and_publish_stats():
         logger.error(f"Fehler beim Statistik-Abruf: {str(e)}")
 
 
+def write_dump(vehicle):
+    """Schreibt den kompletten Fahrzeugzustand (Felder + API-Rohdaten) atomar in dump_path (nur 1x pro getDump-Befehl)."""
+    fields = {k: v for k, v in vars(vehicle).items() if k != 'data'}
+    dump = {
+        "dumped_at": datetime.now().isoformat(timespec="seconds"),
+        "fields": fields,
+        "raw_api_data": _g(vehicle, 'data'),
+    }
+    tmp = dump_path + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)   # enthaelt VIN/Standort -> nur Besitzer
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(dump, f, default=str, ensure_ascii=False, indent=1)
+    os.replace(tmp, dump_path)
+    return os.path.getsize(dump_path)
+
+
 def confirm_by_state(cmd, payload):
     """Fallback: Fahrzeugzustand mit dem erwarteten Ergebnis vergleichen. True/False, None = nicht pruefbar."""
     try:
@@ -324,6 +346,15 @@ def execute_command(topic, payload, raw):
     """Fuehrt einen Befehl aus. Rueckgabe: (state, detail, action_id) oder None (bei getAll/forceAll)."""
     with api_lock:
         vm.check_and_refresh_token()
+
+    if topic == "getDump":
+        with api_lock:
+            if payload.strip().lower() == "force":
+                vm.force_refresh_vehicle_state(vehicle_id)
+            else:
+                vm.check_and_force_update_vehicles(3598)
+            size = write_dump(vm.get_vehicle(vehicle_id))
+        return "success", f"Dump geschrieben: {dump_path} ({size} Bytes)", None
 
     if topic == "getAll":
         update_and_publish(force_mode="auto")
