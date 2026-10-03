@@ -495,7 +495,7 @@ def main():
     vm = VehicleManager(region=config['apiregion'],
                         brand=config['apibrand'],
                         username=config['apiusername'],
-                        password=config['apipassword'],
+                        password=config.get('apirefreshtoken') or config.get('apiapirefreshtoken') or config['apipassword'],
                         pin=config['apipin'],
                         language=config['apilanguage']
                         )

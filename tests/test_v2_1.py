@@ -53,7 +53,7 @@ def install_stubs():
 EXC = install_stubs()
 SETTINGS = {"mqttclientid": "t", "mqttbasetopic": "kia/", "mqtthistorytopic": "kia/hist", "mqttbrokerip": "127.0.0.1",
             "mqttbrokerport": 1883, "mqttbrokeruser": "u", "mqttbrokerpasswort": "p", "apiusername": "u",
-            "apipassword": "p", "apipin": "0000", "apibrand": 1, "apiregion": 1, "apilanguage": "de",
+            "apirefreshtoken": "p", "apipin": "0000", "apibrand": 1, "apiregion": 1, "apilanguage": "de",
             "apivehicleid": "VID", "drivinghistorydays": 3}
 _tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
 json.dump(SETTINGS, _tmp)
