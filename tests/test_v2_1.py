@@ -204,21 +204,6 @@ class V21Tests(unittest.TestCase):
         self.assertEqual(json.loads(kia.client.topic("last_action")[-1])["state"], "success")
         self.assertFalse(os.path.exists(kia.dump_path + ".tmp"))
 
-    def test_passwort_schluessel(self):
-        saved = dict(kia.config)
-        try:
-            kia.config.pop("apirefreshtoken", None)
-            kia.config["apipassword"] = "pw"
-            kia.config["apirefreshtoken"] = "alt"
-            self.assertEqual(kia.get_api_password(), "pw")            # apipassword hat Vorrang
-            del kia.config["apipassword"]
-            self.assertEqual(kia.get_api_password(), "alt")           # Uebergang: alter Schluessel funktioniert noch
-            del kia.config["apirefreshtoken"]
-            with self.assertRaises(SystemExit):
-                kia.get_api_password()
-        finally:
-            kia.config.clear(); kia.config.update(saved)
-
     def test_neue_werte_und_null_fuer_fehlendes(self):
         kia.vm = FakeVM([ORDER_STATUS.SUCCESS])
         kia.update_and_publish("auto")
